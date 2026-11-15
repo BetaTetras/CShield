@@ -34,9 +34,8 @@ CShild shw [--vault] --app
 CShild shw [--vault] --id
 CShild shw [--vault] --app --id
 CShild shw [--vault] --tag
-CShild shw [--vault] --table [--app]
-CShild shw [--vault] --app --id --reveal
-CShild shw [--vault] --app --id --copy
+CShild shw [--vault] --search
+CShild shw [--vault] --app --id --show 
 
 // Générateur
 CShild gen
