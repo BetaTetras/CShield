@@ -11,7 +11,7 @@
 #include "bt_utils.h"
 #include "bt_log.h"
 
-int addEntry(JsonValue *vaultRoot,CShildEntry entry){
+int addEntry(JsonValue *vaultRoot,CShildParams entry){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -129,7 +129,7 @@ int addEntry(JsonValue *vaultRoot,CShildEntry entry){
 }
 
 
-int removeEntry(JsonValue *vaultRoot,CShildEntry entry,int* numberOfEntryRemoved){
+int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemoved){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT || numberOfEntryRemoved == NULL){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL,numberOfEntryRemoved == NULL or not an object)");
         return 1;
@@ -213,7 +213,7 @@ int removeEntry(JsonValue *vaultRoot,CShildEntry entry,int* numberOfEntryRemoved
     return 0;
 }
 
-int modEntry(JsonValue *vaultRoot,CShildEntry entry,size_t* indexBadTag){
+int modEntry(JsonValue *vaultRoot,CShildParams entry,size_t* indexBadTag){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -255,7 +255,7 @@ int modEntry(JsonValue *vaultRoot,CShildEntry entry,size_t* indexBadTag){
     // L'application existe t'elle ?
     JsonValue *apps_p = &vaultRoot->value.object->listeOfPair[indexor].value;
     if(apps_p->type != JSON_OBJECT){
-        LOG_ERROR("JSON of the vault altered - Application value is not an object");
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
         return 1;
     }
     size_t indexApp = getIndexFromObjectWithKey(apps_p->value.object,entry.app);
@@ -498,6 +498,454 @@ int modPassword(JsonObject *obj,char* newPassword){
     return 0;
 }
 
+// Remplit les champs de e à partir de entries (la valeur JSON d'une entrée : password, note, tags, created_at, updated_at) :
+// pwd (seulement si show == 1, sinon il reste NULL), note, tags + nbOfTags, created et updated sont des copies à libérer par l'appelant.
+// e doit être à zéro avant l'appel, et app / id ne sont PAS remplis ici : l'appelant les copie après (sinon ils seraient libérés avec le reste en cas d'erreur).
+// Renvoie 0 si tout est copié, 1 en cas d'erreur (paramètre invalide, vault altéré, mémoire...) : e est alors remis à zéro, il n'y a rien à libérer.
+int getEntry(JsonValue entries,CShildEntry *e,int show){
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(entries.type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - entry value is not an object");
+        return 1;
+    }
+
+    if(show == 1){
+        size_t indexPassword = getIndexFromObjectWithKey(entries.value.object,"password");
+        if(indexPassword == (size_t)-1){
+            LOG_ERROR("JSON of the vault altered - 'password' is not found in entry object");
+            nukeString(e->pwd,bt_strlen(e->pwd));
+            bt_deepFree(e->nbOfTags,(void**)e->tags);
+            bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+            *e = (CShildEntry){0};
+            return 1;
+        }
+        if(bt_strcpy(&e->pwd,entries.value.object->listeOfPair[indexPassword].value.value.string)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            nukeString(e->pwd,bt_strlen(e->pwd));
+            bt_deepFree(e->nbOfTags,(void**)e->tags);
+            bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+            *e = (CShildEntry){0};
+            return 1;
+        }
+    }
+    size_t indexNote = getIndexFromObjectWithKey(entries.value.object,"note");
+    if(indexNote == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - 'note' is not found in entry object");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    if(bt_strcpy(&e->note,entries.value.object->listeOfPair[indexNote].value.value.string)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    size_t indexTags = getIndexFromObjectWithKey(entries.value.object,"tags");
+    if(indexTags == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - 'tags' is not found in entry object");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    size_t nbOfTags = entries.value.object->listeOfPair[indexTags].value.value.array->nbOfElement;
+    e->nbOfTags = nbOfTags;
+    e->tags = calloc(e->nbOfTags,sizeof(char*));
+    if(e->tags == NULL && nbOfTags > 0){
+        LOG_ERROR("Error while allocating memory (e->tags = calloc)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    for(size_t i=0;i<nbOfTags;i++){
+        if(bt_strcpy(&e->tags[i],entries.value.object->listeOfPair[indexTags].value.value.array->listeOfValue[i].value.string)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            nukeString(e->pwd,bt_strlen(e->pwd));
+            bt_deepFree(e->nbOfTags,(void**)e->tags);
+            bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+            *e = (CShildEntry){0};
+            return 1;
+        }
+    }
+    size_t indexCreated_at = getIndexFromObjectWithKey(entries.value.object,"created_at");
+    if(indexCreated_at == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - 'created_at' is not found in entry object");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    if(bt_strcpy(&e->created,entries.value.object->listeOfPair[indexCreated_at].value.value.string)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    size_t indexUpdated_at = getIndexFromObjectWithKey(entries.value.object,"updated_at");
+    if(indexUpdated_at == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - 'updated_at' is not found in entry object");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    if(bt_strcpy(&e->updated,entries.value.object->listeOfPair[indexUpdated_at].value.value.string)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+
+    return 0;
+}
+
+int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+    if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(p.app == NULL){
+        LOG_ERROR("App name not provided (e->app == NULL)");
+        return 1;
+    }
+    if(numberOfEntry == NULL){
+        LOG_ERROR("Corrupted pointer (numberOfEntry == NULL)");
+        return 1;
+    }
+
+    size_t indexor = 0;
+    double versionCShild = getVersionCShild();
+    if(versionCShild == -1){
+        LOG_ERROR("Impossible to fetch the version of CShild");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShild != versionVault){
+        LOG_ERROR("Version of CShild and the vault different");
+        return 1;
+    }
+
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_v = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
+        return 1;
+    }
+
+    // L'app existe ?
+    size_t indexApp = getIndexFromObjectWithKey(apps_v->value.object,p.app);
+    if(indexApp == (size_t)-1){
+        // L'app n'existe pas 
+        return 2;
+    }
+    JsonValue* entry_v = &apps_v->value.object->listeOfPair[indexApp].value;
+    if(entry_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - entry value is not an object");
+        return 1;
+    }
+
+    *numberOfEntry = entry_v->value.object->nbOfElement;
+    *e = calloc(*numberOfEntry,sizeof(CShildEntry));
+    if(*e == NULL){
+        *numberOfEntry = 0;
+        LOG_ERROR("Error while allocating memory (*e = calloc(numberOfEntry,sizeof(CShildEntry)))");
+        return 1;
+    }
+    for(size_t i=0;i<*numberOfEntry;i++){
+        (*e)[i] = (CShildEntry){0};
+        int state = getEntry(entry_v->value.object->listeOfPair[i].value,&(*e)[i],p.show);
+        if(state == 1){
+            for(size_t j=0;j<=i;j++){
+                nukeString((*e)[j].pwd,bt_strlen((*e)[j].pwd));
+                bt_deepFree((*e)[j].nbOfTags,(void**)(*e)[j].tags);
+                bt_multiFree(6,(*e)[j].app,(*e)[j].id,(*e)[j].pwd,(*e)[j].note,(*e)[j].created,(*e)[j].updated);
+            }
+            free(*e);
+            *e = NULL;
+            *numberOfEntry = 0;
+            return 1;
+        }
+
+        if(bt_strcpy(&(*e)[i].app,p.app)){
+            for(size_t j=0;j<=i;j++){
+                nukeString((*e)[j].pwd,bt_strlen((*e)[j].pwd));
+                bt_deepFree((*e)[j].nbOfTags,(void**)(*e)[j].tags);
+                bt_multiFree(6,(*e)[j].app,(*e)[j].id,(*e)[j].pwd,(*e)[j].note,(*e)[j].created,(*e)[j].updated);
+            }
+            free(*e);
+            *e = NULL;
+            *numberOfEntry = 0;
+            return 1;
+        }
+        if(bt_strcpy(&(*e)[i].id,entry_v->value.object->listeOfPair[i].key)){
+            for(size_t j=0;j<=i;j++){
+                nukeString((*e)[j].pwd,bt_strlen((*e)[j].pwd));
+                bt_deepFree((*e)[j].nbOfTags,(void**)(*e)[j].tags);
+                bt_multiFree(6,(*e)[j].app,(*e)[j].id,(*e)[j].pwd,(*e)[j].note,(*e)[j].created,(*e)[j].updated);
+            }
+            free(*e);
+            *e = NULL;
+            *numberOfEntry = 0;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p){
+    if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(p.app == NULL){
+        LOG_ERROR("App name not provided (e->app == NULL)");
+        return 1;
+    }
+    if(p.id == NULL){
+        LOG_ERROR("ID not provided (e->id == NULL)");
+        return 1;
+    }
+
+    size_t indexor = 0;
+    double versionCShild = getVersionCShild();
+    if(versionCShild == -1){
+        LOG_ERROR("Impossible to fetch the version of CShild");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShild != versionVault){
+        LOG_ERROR("Version of CShild and the vault different");
+        return 1;
+    }
+
+    *e = (CShildEntry){0};
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_v = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
+        return 1;
+    }
+    // L'app existe ?
+    size_t indexApp = getIndexFromObjectWithKey(apps_v->value.object,p.app);
+    if(indexApp == (size_t)-1){
+        // L'app n'existe pas 
+        return 2;
+    }
+    JsonValue* entry_v = &apps_v->value.object->listeOfPair[indexApp].value;
+    if(entry_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - entry value is not an object");
+        return 1;
+    }
+    // L'ID existe ?
+    size_t indexID = getIndexFromObjectWithKey(entry_v->value.object,p.id);
+    if(indexID == (size_t)-1){
+        // L'ID n'existe pas 
+        return 3;
+    }
+    // On a les index pour recup l'entrie
+    if(getEntry(entry_v->value.object->listeOfPair[indexID].value,e,p.show)){
+        LOG_ERROR("Filling of an entry failed (getEntry)");
+        return 1;
+    }
+    if(bt_strcpy(&e->app,p.app)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+    if(bt_strcpy(&e->id,p.id)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        nukeString(e->pwd,bt_strlen(e->pwd));
+        bt_deepFree(e->nbOfTags,(void**)e->tags);
+        bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
+        *e = (CShildEntry){0};
+        return 1;
+    }
+
+    return 0;
+}
+
+int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+    if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(numberOfEntry == NULL){
+        LOG_ERROR("Corrupted pointer (numberOfEntry == NULL)");
+        return 1;
+    }
+    if(p.tags == NULL){
+        LOG_ERROR("Corrupted pointer (p.tags == NULL)");
+        return 1;
+    }
+    if(p.nbOfTags == 0){
+        LOG_ERROR("No tags provided");
+        return 1;
+    }
+
+    *numberOfEntry = 0;
+    *e = NULL;
+    size_t indexor = 0;
+    int state = 0;
+    double versionCShild = getVersionCShild();
+    if(versionCShild == -1){
+        LOG_ERROR("Impossible to fetch the version of CShild");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShild != versionVault){
+        LOG_ERROR("Version of CShild and the vault different");
+        return 1;
+    }
+
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_v = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
+        return 1;
+    }  
+
+    
+    for(size_t i=0;i<apps_v->value.object->nbOfElement;i++){
+        JsonValue* IDs_p = &apps_v->value.object->listeOfPair[i].value;
+        if(IDs_p->type != JSON_OBJECT){
+            LOG_ERROR("JSON of the vault altered - IDs level value is not objects");
+            for(size_t k=0;k<*numberOfEntry;k++){
+                bt_freeCShildEntry(&(*e)[k]);
+            }
+            free(*e);
+            *e = NULL;
+            *numberOfEntry = 0;
+            return 1;
+        }
+        char* appName_p = apps_v->value.object->listeOfPair[i].key;
+        for(size_t j=0;j<IDs_p->value.object->nbOfElement;j++){
+            JsonValue* Entries_p = &IDs_p->value.object->listeOfPair[j].value;
+            if(Entries_p->type != JSON_OBJECT){
+                LOG_ERROR("JSON of the vault altered - Entries level value is not objects");
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            char* idName_p = IDs_p->value.object->listeOfPair[j].key;
+            CShildEntry buffer_e = {0};
+            state = getEntry(*Entries_p,&buffer_e,p.show);
+            if(state == 1){
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            state = isOneTagsMatching(buffer_e.tags,buffer_e.nbOfTags,p.tags,p.nbOfTags);
+            if(state == 1){
+                if(bt_strcpy(&buffer_e.app,appName_p) == 1){
+                    LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                    bt_freeCShildEntry(&buffer_e);
+                    for(size_t k=0;k<*numberOfEntry;k++){
+                        bt_freeCShildEntry(&(*e)[k]);
+                    }
+                    free(*e);
+                    *e = NULL;
+                    *numberOfEntry = 0;
+                    return 1;
+                }
+
+                if(bt_strcpy(&buffer_e.id,idName_p) == 1){
+                    LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                    bt_freeCShildEntry(&buffer_e);
+                    for(size_t k=0;k<*numberOfEntry;k++){
+                        bt_freeCShildEntry(&(*e)[k]);
+                    }
+                    free(*e);
+                    *e = NULL;
+                    *numberOfEntry = 0;
+                    return 1;
+                }
+                CShildEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry));
+                if(buffer == NULL){
+                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry)))");
+                    bt_freeCShildEntry(&buffer_e);
+                    for(size_t k=0;k<*numberOfEntry;k++){
+                        bt_freeCShildEntry(&(*e)[k]);
+                    }
+                    free(*e);
+                    *e = NULL;
+                    *numberOfEntry = 0;
+                    return 1;
+                }
+                
+                *e = buffer;
+                (*e)[*numberOfEntry] = buffer_e;
+                (*numberOfEntry)++;
+            }else{
+                bt_freeCShildEntry(&buffer_e);
+            }
+        }
+    }
+
+    return 0;
+}
+
 //////////////////////////////
 
 int getTime(char** dest){
@@ -543,6 +991,18 @@ double getVersionVault(JsonValue vaultRoot){
         return -1;
     }
     return vaultRoot.value.object->listeOfPair[indexVersion].value.value.decimal;
+}
+
+int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags){
+    for(size_t i=0;i<nbOfTags;i++){
+        for(size_t j=0;j<nbOfSearchedTags;j++){
+            if(bt_strcmp(listeOfTags[i],listeOfSearchedTags[j]) == 0){
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 static char* emptyString(void);
@@ -630,7 +1090,7 @@ int generateNewBlankEntry(JsonObject* objDest){
     return 0;
 }
 
-int fillUpWithEntry(JsonObject* obj,CShildEntry entry){
+int fillUpWithEntry(JsonObject* obj,CShildParams entry){
     if(obj == NULL){
         LOG_ERROR("Corrupted pointer (obj == NULL)");
         return 1;

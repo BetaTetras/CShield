@@ -18,7 +18,7 @@
 //   1 : erreur (paramètre invalide, versions de CShild et du vault différentes, vault altéré, mémoire...)
 //   2 : mot de passe de l'entrée vide (entry.pwd non NULL mais "")
 //   3 : l'app et l'id existent déjà (rien n'est modifié)
-int addEntry(JsonValue *vaultRoot, CShildEntry entry);
+int addEntry(JsonValue *vaultRoot, CShildParams entry);
 
 // Supprime de vaultRoot l'entrée entry.app / entry.id. Si entry.id est NULL, supprime TOUTE l'app.
 // Si le dernier id d'une app est supprimé, l'app elle-même est supprimée aussi.
@@ -30,7 +30,7 @@ int addEntry(JsonValue *vaultRoot, CShildEntry entry);
 //   3 : l'id n'existe pas dans cette app
 //   4 : suppression faite ET l'app a été supprimée parce qu'elle n'avait plus aucun id (*numberOfEntryRemoved vaut 1)
 // 2 et 3 ne sont pas des erreurs internes (rien n'est écrit dans error.log) : l'appelant doit les signaler à l'utilisateur.
-int removeEntry(JsonValue *vaultRoot,CShildEntry entry,int* numberOfEntryRemoved);
+int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemoved);
 
 // Modifie dans vaultRoot l'entrée entry.app / entry.id. Une seule des trois actions est faite, par ordre de priorité :
 //   - entry.newAppName non NULL : renomme l'app entry.app (entry.id et le reste sont ignorés)
@@ -56,12 +56,18 @@ int removeEntry(JsonValue *vaultRoot,CShildEntry entry,int* numberOfEntryRemoved
 //   8 : tagsMethode 3 : un tag n'existe pas (même remarque que pour 7). *indexBadTag = index de ce tag dans entry.tags
 // 2 à 8 ne sont pas des erreurs internes (rien n'est écrit dans error.log) : l'appelant doit les signaler à l'utilisateur.
 // Sur tout retour différent de 0, ne pas écrire le vault.
-int modEntry(JsonValue *vaultRoot,CShildEntry entry,size_t* indexBadTag);
+int modEntry(JsonValue *vaultRoot,CShildParams entry,size_t* indexBadTag);
 
 // Remplace le mot de passe de data et déplace l'ancien dans "password_history" (avec la date).
 // ATTENTION : efface newPassword (stringToZero) une fois copié, il ne doit pas être réutilisé.
 // Renvoie 0 si le mot de passe est remplacé, 1 en cas d'erreur, 2 si newPassword est vide (rien n'est modifié).
 int modPassword(JsonObject *data, char* newPassword);
+
+int getEntry(JsonValue entrys,CShildEntry *e,int show);
+int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p);
+int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
+int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
+
 
 // Date et heure actuelles en UTC au format "2026-11-05T14:32:10Z".
 // *dest reçoit une nouvelle chaîne (21 octets), à libérer avec free.
@@ -70,12 +76,15 @@ int getTime(char** dest);
 // Version enregistrée dans le vault (clé "version", un décimal comme 0.1), ou -1 si elle est introuvable.
 double getVersionVault(JsonValue vaultRoot);
 
+int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags);
+
+
 // Remplit objDest avec une entrée vide : password, note, tags, password_history, created_at et updated_at.
 int generateNewBlankEntry(JsonObject* objDest);
 
 // Copie dans obj les champs de entry qui ne sont pas NULL (pwd, note, tags).
 // obj doit venir de generateNewBlankEntry.
 // Renvoie 0 si tout est copié, 1 en cas d'erreur, 2 si entry.pwd est vide (le mot de passe est traité en premier : rien n'est alors modifié).
-int fillUpWithEntry(JsonObject* obj, CShildEntry entry);
+int fillUpWithEntry(JsonObject* obj, CShildParams entry);
 
 #endif

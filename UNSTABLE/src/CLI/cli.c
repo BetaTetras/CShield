@@ -29,7 +29,7 @@ typedef enum {
     inf
 } methode;
 
-static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m);
+static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m);
 int AES_GCM_Decrypt_returnCodeHandler(int code);
 int AES_GCM_Encrypt_returnCodeHandler(int code);
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        CShildEntry e;
+        CShildParams e;
 
         state = fillUpEntryFromARGV(&e,argv,argc,m);
         if(state == 1){
@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        CShildEntry e;
+        CShildParams e;
 
         state = fillUpEntryFromARGV(&e,argv,argc,m);
         if(state == 1){
@@ -481,7 +481,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        CShildEntry e;
+        CShildParams e;
 
         state = fillUpEntryFromARGV(&e,argv,argc,m);
         if(state == 1){
@@ -1337,7 +1337,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
+static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
     int state = 0;
     int paramAPP = 0;
     int paramID = 0;
@@ -1350,7 +1350,12 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
     int paramNewID = 0;
     int paramNewPwd = 0;
 
-    *e = (CShildEntry){0};
+    int paramSEARCH = 0;
+    int paramSHOW = 0;
+    size_t numOfSearchedWord = 0;
+    char** searchedWords = NULL;
+
+    *e = (CShildParams){0};
 
     for(int i=3;i<argc;i++){
         if(isOneOfThemEqual(argv[i],2,"--app","-a")){
@@ -1358,12 +1363,14 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                 // Il manque l'app dans la commande
                 print_WRN("App name missing after app balise");
                 bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             if(paramAPP == 1){
                 // Param deja entrée
                 print_WRN("Parameter '%s' already use",argv[i]);
                 bt_deepFree(numOfTags, (void**)tags); 
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             paramAPP = 1;
@@ -1381,12 +1388,14 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                 // Il manque l'id dans la commande
                 print_WRN("ID name missing after ID balise");
                 bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             if(paramID == 1){
                 // Param deja entrée
                 print_WRN("Parameter '%s' already use",argv[i]);
                 bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             paramID = 1;
@@ -1407,6 +1416,10 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                     i++;
                     continue;
                 }
+            }else if(m == shw){
+                print_WRN("The parameter '--note' is useless while exposing entry");
+                i++;
+                continue;
             }
             if(i+1 >= argc){
                 // Il manque la note dans la commande
@@ -1490,6 +1503,24 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                     return 1;
                 }
                 paramTAGS = 1;
+            }else if(m == shw){
+                if(isOneOfThemEqual(argv[i],4,"--add-tags","-at","--remove-tags","-rt")){
+                    print_WRN("Tags modifing methode does not apply with the show methode");
+                    for(int j=i+1;j<argc;j++){
+                        if((argv[j])[0] == '-'){
+                            break;
+                        }
+                        i ++;
+                    }
+                    continue;
+                }
+                if(paramTAGS == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                paramTAGS = 1;
             }
             // Calcule du nombre de tag
             for(int j=i+1;j<argc;j++){
@@ -1500,12 +1531,14 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
             }
             if(numOfTags == 0){
                 print_WRN("No tag provided after tags balise");
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             char** tmp = realloc(tags,numOfTags * sizeof(char*));
             if(tmp == NULL){
                 print_ERR("Error while allocating tags memory");
                 bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             tags = tmp;
@@ -1518,12 +1551,126 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                 if(state == 1){
                     print_ERR("Error while allocating a tag memory");
                     bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                     return 1;
                 }
             }
             i += numOfTags;
             e->nbOfTags = numOfTags;
             e->tags = tags;
+        }else if(isOneOfThemEqual(argv[i],2,"--search","-se")){
+            // Calculer le nombre de word
+            for(int j=i+1;j<argc;j++){
+                if((argv[j])[0] == '-'){
+                    break;
+                }
+                numOfSearchedWord ++;
+            }
+            if(m == crt){
+                print_WRN("The parameter '--search' is useless while creating entry");
+                i+= numOfSearchedWord;
+                continue;
+            }else if(m == mdf){
+                print_WRN("The parameter '--search' is useless while modifying an entry");
+                i+= numOfSearchedWord;
+                continue;
+            }else if(m == dlt){
+                print_WRN("The parameter '--search' is useless while deleting entry");
+                i+= numOfSearchedWord;
+                continue;
+            }
+            if(paramSEARCH == 1){
+                print_WRN("Parameter '%s' already use",argv[i]);
+                bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                return 1;
+            }
+            paramSEARCH = 1;
+
+            if(numOfSearchedWord == 0){
+                print_WRN("No word provided after search balise");
+                bt_deepFree(numOfTags, (void**)tags);
+                return 1;
+            }
+            char** tmp = realloc(searchedWords,numOfSearchedWord * sizeof(char*));
+            if(tmp == NULL){
+                print_ERR("Error while allocating words memory");
+                bt_deepFree(numOfSearchedWord, (void**)searchedWords);
+                bt_deepFree(numOfTags,(void**)tags);
+                return 1;
+            }
+            searchedWords = tmp;
+            for(size_t j=0;j<numOfSearchedWord;j++){
+                searchedWords[j] = NULL;
+            }
+            for(size_t j=0;j<numOfSearchedWord;j++){
+                state = bt_strcpy(&searchedWords[j], argv[i+1+j]);
+                if(state == 1){
+                    print_ERR("Error while allocating a words memory");
+                    bt_deepFree(numOfSearchedWord, (void**)searchedWords);
+                    bt_deepFree(numOfTags,(void**)tags);
+                    return 1;
+                }
+            }
+            i += numOfSearchedWord;
+            e->nbOfSearchedWord = numOfSearchedWord;
+            e->searchedWords = searchedWords;
+        }else if(isOneOfThemEqual(argv[i],2,"--show","-sh")){
+            if(m == crt){
+                print_WRN("The parameter '--show' is useless while creating entry");
+                continue;
+            }else if(m == mdf){
+                print_WRN("The parameter '--show' is useless while modifying an entry");
+                continue;
+            }else if(m == dlt){
+                print_WRN("The parameter '--show' is useless while deleting entry");
+                continue;
+            }
+            if(paramSHOW == 1){
+                print_WRN("Parameter '%s' already use",argv[i]);
+                bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                return 1;
+            }
+            paramSHOW = 1;
+            e->show = 1;
+        }else if(isOneOfThemEqual(argv[i],2,"--password","-p")){
+            if(m != mdf){
+                if(m == crt){
+                    print_WRN("The parameter '--password' is useless while creating an entry");
+                }else if(m == dlt){
+                    print_WRN("The parameter '--password' is useless while deleting an entry");
+                }else if(m == shw){
+                    print_WRN("The parameter '--password' is useless while exposing an entry");
+                }
+                if(i+1 >= argc){
+                    continue;
+                }else if(argv[i+1][0] != '-'){
+                    print_INF("Password is NEVER entered through parameters");
+                    i++;
+                }
+                continue;
+            }
+
+            if(paramNewApp == 1){
+                print_WRN("The parameter '--password' is useless while changing the name of an app");
+            }if(paramNewID == 1){
+                print_WRN("The parameter '--password' is useless while changing the name of an ID");
+            }
+            if(paramNewPwd == 1){
+                print_WRN("Parameter '%s' already use",argv[i]);
+                bt_deepFree(numOfTags, (void**)tags);
+                return 1;
+            }
+            if(i+1 < argc){
+                if(argv[i+1][0] != '-'){
+                    print_WRN("No password goes through parameters, secure input done later");
+                    i++;
+                }
+            }
+            paramNewPwd = 1;
+            e->newPassword = 1;
+            continue;
         }else if(m == mdf){
             if(isOneOfThemEqual(argv[i],2,"--new-app","-na")){
                 if(i+1 >= argc){
@@ -1571,26 +1718,6 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
                 }
                 e->newIDName = argv[i+1];
                 i++;
-            }else if(isOneOfThemEqual(argv[i],2,"--password","-p")){
-                if(paramNewApp == 1){
-                    print_WRN("The parameter '--password' is useless while changing the name of an app");
-                }if(paramNewID == 1){
-                    print_WRN("The parameter '--password' is useless while changing the name of an ID");
-                }
-                if(paramNewPwd == 1){
-                    print_WRN("Parameter '%s' already use",argv[i]);
-                    bt_deepFree(numOfTags, (void**)tags);
-                    return 1;
-                }
-                if(i+1 < argc){
-                    if(argv[i+1][0] != '-'){
-                        print_WRN("No password goes through parameters, secure input done later");
-                        i++;
-                    }
-                }
-                paramNewPwd = 1;
-                e->newPassword = 1;
-                continue;
             }else{
                 // Commande non reconnue
                 print_WRN("Argument '%s' does not exist for the command '%s'",argv[i],argv[1]);
@@ -1601,6 +1728,7 @@ static int fillUpEntryFromARGV(CShildEntry* e,char* argv[],int argc,methode m){
             // Commande non reconnue
             print_WRN("Argument '%s' does not exist for the command '%s'",argv[i],argv[1]);
             bt_deepFree(numOfTags, (void**)tags);
+            bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
             return 1;
         }
     }

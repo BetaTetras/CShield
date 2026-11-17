@@ -17,7 +17,23 @@ typedef struct {
     char* newIDName;
     int newPassword;
     int tagsMethode;
+
+    int show;
+    char** searchedWords;
+    size_t nbOfSearchedWord;
+}CShildParams;
+
+typedef struct{
+    char* app;
+    char* id;
+    char* pwd;
+    char* note;
+    char** tags;
+    size_t nbOfTags;
+    char* created;
+    char* updated;
 }CShildEntry;
+
 
 // Fonctions de chaînes partagées par CSON, AES et le CLI.
 // Les paramètres const ne sont que lus.
@@ -54,6 +70,7 @@ int writeVault(const uint8_t* src,const size_t size,const char* path);
 void bt_multiFree(size_t numberToFree,...);
 void bt_multiFreeValue(size_t numberToFree,...);
 void bt_deepFree(size_t numberToFree,void** p);
+void bt_freeCShildEntry(CShildEntry *entry);
 void nukeString(char* str,size_t size);
 void uint8_tToZero(uint8_t* p_uint8_t,size_t size);   // définie dans AES.c (non déclarée dans AES.h upstream)
 

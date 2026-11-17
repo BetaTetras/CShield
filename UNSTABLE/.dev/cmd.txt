@@ -33,7 +33,7 @@ CShild shw [--vault]
 CShild shw [--vault] --app
 CShild shw [--vault] --id
 CShild shw [--vault] --app --id
-CShild shw [--vault] --tag
+CShild shw [--vault] --tags
 CShild shw [--vault] --search
 CShild shw [--vault] --app --id --show 
 
