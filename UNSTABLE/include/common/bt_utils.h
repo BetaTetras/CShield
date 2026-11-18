@@ -21,6 +21,8 @@ typedef struct {
     int show;
     char** searchedWords;
     size_t nbOfSearchedWord;
+    char OpeLogTAGS;
+    char OpeLogWORD;
 }CShildParams;
 
 typedef struct{
@@ -32,6 +34,7 @@ typedef struct{
     size_t nbOfTags;
     char* created;
     char* updated;
+    char* matchingSrc;
 }CShildEntry;
 
 
@@ -46,6 +49,7 @@ int bt_strchrxt(const char* str,char c,int x);
 int bt_strcpybxy(char** dest, const char* src, size_t x, size_t y);   // copie src[x..y] dans *dest
 int bt_strcpy(char** dest, const char* src);                         // copie src dans *dest (malloc/realloc)
 int bt_strcat(char** str1,const char* str2);
+int bt_strii(char* str,char* part);
 
 int isOneOfThemEqual(const char* str, size_t nbrOfElement, ...);  // 1 si str vaut l'une des chaînes suivantes
 int vaultAreadyCreated(const char* selectedName);

@@ -67,6 +67,7 @@ int getEntry(JsonValue entrys,CShildEntry *e,int show);
 int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p);
 int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
 int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
+int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
 
 
 // Date et heure actuelles en UTC au format "2026-11-05T14:32:10Z".
@@ -76,8 +77,8 @@ int getTime(char** dest);
 // Version enregistrée dans le vault (clé "version", un décimal comme 0.1), ou -1 si elle est introuvable.
 double getVersionVault(JsonValue vaultRoot);
 
-int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags);
-
+int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags,char logicalOperator);
+int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShildEntry entry,char logicalOperator,char** whereItMatch);
 
 // Remplit objDest avec une entrée vide : password, note, tags, password_history, created_at et updated_at.
 int generateNewBlankEntry(JsonObject* objDest);

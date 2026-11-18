@@ -788,7 +788,7 @@ void bt_deepFree(size_t numberToFree,void** p){
 
 void bt_freeCShildEntry(CShildEntry *entry){
     nukeString(entry->pwd,bt_strlen(entry->pwd));
-    bt_multiFree(6,entry->app,entry->id,entry->pwd,entry->note,entry->created,entry->updated);
+    bt_multiFree(7,entry->app,entry->id,entry->pwd,entry->note,entry->created,entry->updated,entry->matchingSrc);
     bt_deepFree(entry->nbOfTags,(void**)entry->tags);
 
     *entry = (CShildEntry){0};

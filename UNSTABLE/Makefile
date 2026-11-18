@@ -40,7 +40,7 @@ $(BUILD)/bt_log.o: include/common/bt_log.c include/common/bt_log.h include/commo
 $(BUILD)/bt_api.o: include/common/bt_api.c include/common/bt_api.h include/common/bt_utils.h include/common/bt_log.h include/CSON/cson.h | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD)/bt_printf.o: include/common/bt_printf.c include/common/bt_printf.h | $(BUILD)
+$(BUILD)/bt_printf.o: include/common/bt_printf.c include/common/bt_printf.h include/common/bt_utils.h include/common/bt_log.h | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD):

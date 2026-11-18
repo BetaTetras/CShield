@@ -896,7 +896,7 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 *numberOfEntry = 0;
                 return 1;
             }
-            state = isOneTagsMatching(buffer_e.tags,buffer_e.nbOfTags,p.tags,p.nbOfTags);
+            state = isOneTagsMatching(buffer_e.tags,buffer_e.nbOfTags,p.tags,p.nbOfTags,p.OpeLogTAGS);
             if(state == 1){
                 if(bt_strcpy(&buffer_e.app,appName_p) == 1){
                     LOG_ERROR("Copy of a string failed (bt_strcpy)");
@@ -921,6 +921,152 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                     *numberOfEntry = 0;
                     return 1;
                 }
+                CShildEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry));
+                if(buffer == NULL){
+                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry)))");
+                    bt_freeCShildEntry(&buffer_e);
+                    for(size_t k=0;k<*numberOfEntry;k++){
+                        bt_freeCShildEntry(&(*e)[k]);
+                    }
+                    free(*e);
+                    *e = NULL;
+                    *numberOfEntry = 0;
+                    return 1;
+                }
+                
+                *e = buffer;
+                (*e)[*numberOfEntry] = buffer_e;
+                (*numberOfEntry)++;
+            }else{
+                bt_freeCShildEntry(&buffer_e);
+            }
+        }
+    }
+    return 0;
+}
+
+int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+        if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(numberOfEntry == NULL){
+        LOG_ERROR("Corrupted pointer (numberOfEntry == NULL)");
+        return 1;
+    }
+    if(p.searchedWords == NULL){
+        LOG_ERROR("Corrupted pointer (p.searchedWords == NULL)");
+        return 1;
+    }
+    if(p.nbOfSearchedWord == 0){
+        LOG_ERROR("No word provided");
+        return 1;
+    }
+    *numberOfEntry = 0;
+    *e = NULL;
+    size_t indexor = 0;
+    int state = 0;
+    double versionCShild = getVersionCShild();
+    if(versionCShild == -1){
+        LOG_ERROR("Impossible to fetch the version of CShild");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShild != versionVault){
+        LOG_ERROR("Version of CShild and the vault different");
+        return 1;
+    }
+
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_v = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
+        return 1;
+    } 
+
+    for(size_t i=0;i<apps_v->value.object->nbOfElement;i++){
+        JsonValue* IDs_p = &apps_v->value.object->listeOfPair[i].value;
+        if(IDs_p->type != JSON_OBJECT){
+            LOG_ERROR("JSON of the vault altered - IDs level value is not objects");
+            for(size_t k=0;k<*numberOfEntry;k++){
+                bt_freeCShildEntry(&(*e)[k]);
+            }
+            free(*e);
+            *e = NULL;
+            *numberOfEntry = 0;
+            return 1;
+        }
+        char* appName_p = apps_v->value.object->listeOfPair[i].key;
+        for(size_t j=0;j<IDs_p->value.object->nbOfElement;j++){
+            JsonValue* Entries_p = &IDs_p->value.object->listeOfPair[j].value;
+            if(Entries_p->type != JSON_OBJECT){
+                LOG_ERROR("JSON of the vault altered - Entries level value is not objects");
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            char* idName_p = IDs_p->value.object->listeOfPair[j].key;
+            CShildEntry buffer_e = {0};
+            state = getEntry(*Entries_p,&buffer_e,p.show);
+            if(state == 1){
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            if(bt_strcpy(&buffer_e.app,appName_p) == 1){
+                LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                bt_freeCShildEntry(&buffer_e);
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+
+            if(bt_strcpy(&buffer_e.id,idName_p) == 1){
+                LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                bt_freeCShildEntry(&buffer_e);
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            state = isOneWordMatching(p.searchedWords,p.nbOfSearchedWord,buffer_e,p.OpeLogWORD,&buffer_e.matchingSrc);
+            if(state == -1){
+                bt_freeCShildEntry(&buffer_e);
+                for(size_t k=0;k<*numberOfEntry;k++){
+                    bt_freeCShildEntry(&(*e)[k]);
+                }
+                free(*e);
+                *e = NULL;
+                *numberOfEntry = 0;
+                return 1;
+            }
+            if(state == 1){
                 CShildEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry));
                 if(buffer == NULL){
                     LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry)))");
@@ -993,16 +1139,98 @@ double getVersionVault(JsonValue vaultRoot){
     return vaultRoot.value.object->listeOfPair[indexVersion].value.value.decimal;
 }
 
-int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags){
-    for(size_t i=0;i<nbOfTags;i++){
-        for(size_t j=0;j<nbOfSearchedTags;j++){
-            if(bt_strcmp(listeOfTags[i],listeOfSearchedTags[j]) == 0){
-                return 1;
+int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags,char logicalOperator){
+    if(logicalOperator == '|'){
+        for(size_t i=0;i<nbOfTags;i++){
+            for(size_t j=0;j<nbOfSearchedTags;j++){
+                if(bt_strcmp(listeOfTags[i],listeOfSearchedTags[j]) == 0){
+                    return 1;
+                }
             }
+        }
+    }else if(logicalOperator == '&'){
+        size_t nbOfFoundedTags = 0;
+        for(size_t i=0;i<nbOfTags;i++){
+            for(size_t j=0;j<nbOfSearchedTags;j++){
+                if(bt_strcmp(listeOfTags[i],listeOfSearchedTags[j]) == 0){
+                    nbOfFoundedTags++;
+                }
+            }
+        }
+        if(nbOfFoundedTags == nbOfSearchedTags){
+            return 1;
         }
     }
 
     return 0;
+}
+
+int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShildEntry entry,char logicalOperator,char** whereItMatch){
+    if(whereItMatch == NULL){
+        LOG_ERROR("Corrupted pointer (whereItMatch == NULL)");
+        return -1;
+    }
+
+    // Un drapeau par champ où au moins un mot a été trouvé, et le nombre de mots trouvés quelque part
+    int inApp = 0;
+    int inId = 0;
+    int inNote = 0;
+    int inTags = 0;
+    size_t numberOfFounded = 0;
+    for(size_t i=0;i<nbOfWord;i++){
+        int founded = 0;
+        if(bt_strii(entry.app,listeOfWord[i]) == 1){
+            inApp = 1;
+            founded = 1;
+        }
+        if(bt_strii(entry.id,listeOfWord[i]) == 1){
+            inId = 1;
+            founded = 1;
+        }
+        if(bt_strii(entry.note,listeOfWord[i]) == 1){
+            inNote = 1;
+            founded = 1;
+        }
+        for(size_t j=0;j<entry.nbOfTags;j++){
+            if(bt_strii(entry.tags[j],listeOfWord[i]) == 1){
+                inTags = 1;
+                founded = 1;
+            }
+        }
+        numberOfFounded += founded;
+    }
+
+    int isMatching = 0;
+    if(logicalOperator == '|'){
+        isMatching = (numberOfFounded > 0);
+    }else if(logicalOperator == '&'){
+        isMatching = (numberOfFounded > 0 && numberOfFounded == nbOfWord);
+    }
+    if(!isMatching){
+        return 0;
+    }
+
+    // "app, id, note, tags" = 19 caractères au maximum
+    char src_str[24] = "";
+    size_t len = 0;
+    if(inApp){
+        len += (size_t)snprintf(src_str + len,sizeof(src_str) - len,"%sapp",len ? ", " : "");
+    }
+    if(inId){
+        len += (size_t)snprintf(src_str + len,sizeof(src_str) - len,"%sid",len ? ", " : "");
+    }
+    if(inNote){
+        len += (size_t)snprintf(src_str + len,sizeof(src_str) - len,"%snote",len ? ", " : "");
+    }
+    if(inTags){
+        len += (size_t)snprintf(src_str + len,sizeof(src_str) - len,"%stags",len ? ", " : "");
+    }
+    if(bt_strcpy(whereItMatch,src_str)){
+        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        return -1;
+    }
+
+    return 1;
 }
 
 static char* emptyString(void);

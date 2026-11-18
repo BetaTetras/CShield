@@ -32,6 +32,7 @@ typedef enum {
 static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m);
 int AES_GCM_Decrypt_returnCodeHandler(int code);
 int AES_GCM_Encrypt_returnCodeHandler(int code);
+static int isTagAlreadyHere(char** tags,size_t numberOfTags,char* newTag);
 
 
 int main(int argc, char *argv[]) {
@@ -1328,8 +1329,9 @@ int main(int argc, char *argv[]) {
             printf_RGB(248,113,113,"  %-15s%-10d","AES-256-GCM",VERSION_AES);printf_RGB(148,163,184,"https://github.com/BetaTetras/AES-256-GCM");printf("\n");
             printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
         }
+        break;
     }
-    
+
     default:
         break;
     }
@@ -1522,46 +1524,124 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
                 }
                 paramTAGS = 1;
             }
-            // Calcule du nombre de tag
+            // Calcule du nombre de tag + opeLogique si methode shw
+            char opeLogique = '&';
+            int containOperator = 0;
             for(int j=i+1;j<argc;j++){
                 if((argv[j])[0] == '-'){
+                    if(isOneOfThemEqual(argv[j],2,"--and","--or")){
+                        if(m != shw){
+                            print_WRN("Flags '--and' or '--or' are valid only for methode show");
+                            bt_deepFree(numOfTags, (void**)tags);
+                            bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                            return 1;
+                        }else{
+                            if(bt_strcmp(argv[j],"--and") == 0){
+                                if(!containOperator){
+                                    containOperator = 1;
+                                    numOfTags ++;
+                                    continue;
+                                }else{
+                                    print_WRN("One single operator is autorise inside --tags flag");
+                                    bt_deepFree(numOfTags, (void**)tags);
+                                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                                    return 1;
+                                }
+                            }else if(bt_strcmp(argv[j],"--or") == 0){
+                                if(!containOperator){
+                                    opeLogique = '|';
+                                    containOperator = 1;
+                                    numOfTags ++;
+                                    continue;
+                                }else{
+                                    print_WRN("One single operator is autorise inside --tags flag");
+                                    bt_deepFree(numOfTags, (void**)tags);
+                                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                                    return 1;
+                                }
+                            }
+                        }
+                    }
                     break;
                 }
                 numOfTags ++;
             }
-            if(numOfTags == 0){
+            if(numOfTags-containOperator == 0){
                 print_WRN("No tag provided after tags balise");
                 bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
-            char** tmp = realloc(tags,numOfTags * sizeof(char*));
+            char** tmp = realloc(tags,(numOfTags-containOperator) * sizeof(char*));
             if(tmp == NULL){
                 print_ERR("Error while allocating tags memory");
-                bt_deepFree(numOfTags, (void**)tags);
+                bt_deepFree(numOfTags-containOperator, (void**)tags);
                 bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
             tags = tmp;
-            for(size_t j=0;j<numOfTags;j++){
+            for(size_t j=0;j<numOfTags-containOperator;j++){
                 tags[j] = NULL;
             }
             // Allocation de tout les tags
+            size_t indexTags = 0;
             for(size_t j=0;j<numOfTags;j++){
-                state = bt_strcpy(&tags[j], argv[i+1+j]);
-                if(state == 1){
-                    print_ERR("Error while allocating a tag memory");
-                    bt_deepFree(numOfTags, (void**)tags);
-                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
-                    return 1;
+                if(isOneOfThemEqual(argv[i+1+j],2,"--and","--or")){
+                    continue;
+                }else{
+                    if(isTagAlreadyHere(tags,indexTags,argv[i+1+j])){
+                        print_WRN("Duplicated tag ('%s')",argv[i+1+j]);
+                        bt_deepFree(numOfTags-containOperator, (void**)tags);
+                        bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                        return 1;
+                    }
+                
+                    state = bt_strcpy(&tags[indexTags], argv[i+1+j]);
+                    if(state == 1){
+                        print_ERR("Error while allocating a tag memory");
+                        bt_deepFree(numOfTags-containOperator, (void**)tags);
+                        bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                        return 1;
+                    }
+                    indexTags ++;
                 }
             }
+
             i += numOfTags;
+            numOfTags -= containOperator;
+            e->OpeLogTAGS = opeLogique;
             e->nbOfTags = numOfTags;
             e->tags = tags;
         }else if(isOneOfThemEqual(argv[i],2,"--search","-se")){
-            // Calculer le nombre de word
+            // Calculer le nombre de word + opé potentiel
+            numOfSearchedWord = 0;
+            char opeLogique = '&';
+            int containOperator = 0;
             for(int j=i+1;j<argc;j++){
                 if((argv[j])[0] == '-'){
+                    if(bt_strcmp(argv[j],"--and") == 0){
+                        if(!containOperator){
+                            containOperator = 1;
+                            numOfSearchedWord ++;
+                            continue;
+                        }else{
+                            print_WRN("One single operator is autorise inside --search flag");
+                            bt_deepFree(numOfTags, (void**)tags);
+                            bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                            return 1;
+                        }
+                    }else if(bt_strcmp(argv[j],"--or") == 0){
+                        if(!containOperator){
+                            opeLogique = '|';
+                            containOperator = 1;
+                            numOfSearchedWord ++;
+                            continue;
+                        }else{
+                            print_WRN("One single operator is autorise inside --search flag");
+                            bt_deepFree(numOfTags, (void**)tags);
+                            bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                            return 1;
+                        }
+                    }
                     break;
                 }
                 numOfSearchedWord ++;
@@ -1587,12 +1667,12 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
             }
             paramSEARCH = 1;
 
-            if(numOfSearchedWord == 0){
+            if(numOfSearchedWord-containOperator == 0){
                 print_WRN("No word provided after search balise");
                 bt_deepFree(numOfTags, (void**)tags);
                 return 1;
             }
-            char** tmp = realloc(searchedWords,numOfSearchedWord * sizeof(char*));
+            char** tmp = realloc(searchedWords,(numOfSearchedWord-containOperator) * sizeof(char*));
             if(tmp == NULL){
                 print_ERR("Error while allocating words memory");
                 bt_deepFree(numOfSearchedWord, (void**)searchedWords);
@@ -1600,20 +1680,29 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
                 return 1;
             }
             searchedWords = tmp;
-            for(size_t j=0;j<numOfSearchedWord;j++){
+            for(size_t j=0;j<numOfSearchedWord-containOperator;j++){
                 searchedWords[j] = NULL;
             }
+            size_t indexSearchedWord = 0;
             for(size_t j=0;j<numOfSearchedWord;j++){
-                state = bt_strcpy(&searchedWords[j], argv[i+1+j]);
-                if(state == 1){
-                    print_ERR("Error while allocating a words memory");
-                    bt_deepFree(numOfSearchedWord, (void**)searchedWords);
-                    bt_deepFree(numOfTags,(void**)tags);
-                    return 1;
+                if(isOneOfThemEqual(argv[i+1+j],2,"--and","--or")){
+                    continue;
+                }else{
+                    state = bt_strcpy(&searchedWords[indexSearchedWord], argv[i+1+j]);
+                    if(state == 1){
+                        print_ERR("Error while allocating a words memory");
+                        bt_deepFree(numOfSearchedWord-containOperator, (void**)searchedWords);
+                        bt_deepFree(numOfTags,(void**)tags);
+                        return 1;
+                    }
+                    indexSearchedWord++;
                 }
+
             }
+
             i += numOfSearchedWord;
-            e->nbOfSearchedWord = numOfSearchedWord;
+            e->OpeLogWORD = opeLogique;
+            e->nbOfSearchedWord = numOfSearchedWord-containOperator;
             e->searchedWords = searchedWords;
         }else if(isOneOfThemEqual(argv[i],2,"--show","-sh")){
             if(m == crt){
@@ -1840,6 +1929,16 @@ int AES_GCM_Encrypt_returnCodeHandler(int code){
     }else if(code != AES_OK){
         print_ERR("An unknow error occured...");
         return 1;
+    }
+
+    return 0;
+}
+
+static int isTagAlreadyHere(char** tags,size_t numberOfTags,char* newTag){
+    for(size_t i=0;i<numberOfTags;i++){
+        if(bt_strcmp(tags[i],newTag) == 0){
+            return 1;
+        }
     }
 
     return 0;
