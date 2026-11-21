@@ -33,7 +33,7 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m);
 int AES_GCM_Decrypt_returnCodeHandler(int code);
 int AES_GCM_Encrypt_returnCodeHandler(int code);
 static int isTagAlreadyHere(char** tags,size_t numberOfTags,char* newTag);
-
+static int witchBox(CShildParams p);
 
 int main(int argc, char *argv[]) {
     initConsole();
@@ -748,7 +748,248 @@ int main(int argc, char *argv[]) {
         break;
     }
     case shw:{
-        print_INF("methode shw not implemented");
+        if(argc < 3){
+            print_WRN("Not enough arguments (%d arguments)",argc);
+            return 1;
+        }
+        state = vaultAreadyCreated(argv[2]);
+        if(state == -1){
+            print_ERR(ERR_SYSTEM_MSG);
+            return 1;
+        }
+        if(state != 1){
+            print_WRN("vault name '%s' not found",argv[2]);
+            return 1;
+        }
+
+        CShildParams e;
+
+        state = fillUpEntryFromARGV(&e,argv,argc,m);
+        if(state == 1){
+            return 1;
+        }
+        int box = witchBox(e);
+        if(box == 0){
+            print_WRN("Nothing to show: use '--app', '--app' with '--id', '--tags' or '--search'");
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }
+
+        char* vaultPWD = NULL;
+        char* vaultPath = NULL;
+
+        // Entrée du mot de passe
+        printf("Enter the password of the vault : ");
+        state = bt_fgetss(&vaultPWD);
+        if(state == 1){
+            print_ERR(ERR_SYSTEM_MSG);
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }else if(state != 0){
+            print_WRN("The entered password is empty");
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }
+        state = getVaultPathFromName(&vaultPath,argv[2]);
+        if(state == 1){
+            print_ERR(ERR_SYSTEM_MSG);
+            nukeString(vaultPWD,bt_strlen(vaultPWD));
+            free(vaultPWD);
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }
+
+        uint8_t* b_encryptedVault = NULL;
+        uint8_t* b_decryptedVault = NULL;
+        size_t size_encryptedVault;
+        size_t size_decryptedVault;
+        state = readVault(&b_encryptedVault,&size_encryptedVault,vaultPath);
+        if(state == 1){
+            print_ERR(ERR_SYSTEM_MSG);
+            nukeString(vaultPWD,bt_strlen(vaultPWD));
+            free(vaultPWD);
+            free(vaultPath);
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }else if(state == 2){
+            print_ERR("Vault size >= 64 MO");
+            nukeString(vaultPWD,bt_strlen(vaultPWD));
+            free(vaultPWD);
+            free(vaultPath);
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }
+
+        state = AES_GCM_Decrypt(&b_decryptedVault,&size_decryptedVault,b_encryptedVault,size_encryptedVault,vaultPWD);
+        if(AES_GCM_Decrypt_returnCodeHandler(state)){
+            if(state == AES_ERR_MDP){
+                bt_logAction('@',argv[2],1);
+            }
+            uint8_tToZero(b_encryptedVault,size_encryptedVault);
+            nukeString(vaultPWD,bt_strlen(vaultPWD));
+            free(b_encryptedVault);
+            free(vaultPWD);
+            free(vaultPath);
+            bt_deepFree(e.nbOfTags,(void**)e.tags);
+            bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+            return 1;
+        }
+
+        JsonValue vaultRoot = initCson((char*)b_decryptedVault);
+
+        if(box == 1){
+            CShildEntry entry;
+            state = getSingleEntry(&vaultRoot,&entry,e);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }else if(state == 2){
+                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }else if(state == 3){
+                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+
+            bt_boxSingleEntry(&entry,e.show);
+            bt_freeCShildEntry(&entry);
+        }else if(box == 2){
+            CShildEntry* entries;
+            size_t numberOfEntries;
+            state = getAllFromApp(&vaultRoot,&entries,&numberOfEntries,e);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }else if(state == 2){
+                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+
+            bt_boxMultiEntry(entries,numberOfEntries,e.show);
+            for(size_t i=0;i<numberOfEntries;i++){
+                bt_freeCShildEntry(&entries[i]);
+            }
+            free(entries);
+        }else if(box == 3){
+            CShildEntry* entries;
+            size_t numberOfEntries;
+            state = getMatchingTags(&vaultRoot,&entries,&numberOfEntries,e);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+
+            bt_boxTagsMatching(entries,numberOfEntries,e.show,e.tags,e.nbOfTags,e.OpeLogTAGS);
+            for(size_t i=0;i<numberOfEntries;i++){
+                bt_freeCShildEntry(&entries[i]);
+            }
+            free(entries);
+        }else if(box == 4){
+            CShildEntry* entries;
+            size_t numberOfEntries;
+            state = getMatchingWord(&vaultRoot,&entries,&numberOfEntries,e);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+
+            bt_boxWordMatching(entries,numberOfEntries,e.show,e.searchedWords,e.nbOfSearchedWord,e.OpeLogWORD);
+            for(size_t i=0;i<numberOfEntries;i++){
+                bt_freeCShildEntry(&entries[i]);
+            }
+            free(entries);
+        }
+
+        print_SUC("Result printed successfully");
+
+        uint8_tToZero(b_encryptedVault,size_encryptedVault);
+        uint8_tToZero(b_decryptedVault,size_decryptedVault);
+        nukeString(vaultPWD,bt_strlen(vaultPWD));
+
+        free(b_encryptedVault);
+        free(b_decryptedVault);
+        free(vaultPWD);
+        free(vaultPath);
+        freeValue(vaultRoot);
+        bt_deepFree(e.nbOfTags,(void**)e.tags);
+        bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+
         break;
     }
     case gen:{
@@ -1878,6 +2119,22 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
             e->nbOfTags = 0;
             e->newPassword = 0;
             e->tagsMethode = 0;
+        }
+    }
+
+    return 0;
+}
+
+static int witchBox(CShildParams p){
+    if(p.tags != NULL){
+        return 3;
+    }else if(p.searchedWords != NULL){
+        return 4;
+    }else if(p.app != NULL){
+        if(p.id != NULL){
+            return 1;
+        }else{
+            return 2;
         }
     }
 

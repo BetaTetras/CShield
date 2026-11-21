@@ -1,6 +1,7 @@
 
 ┌ ─ ├ └ ┬ ┴ ┤ ┘ │
 
+Box 1:
 CShild vault --app Discord --id BobEnderson
 ┌─────────────────────────────────────────────────────┐
 │ Discord > BobEnderson                               │
@@ -14,6 +15,7 @@ CShild vault --app Discord --id BobEnderson
 │ Updated  │ 2026-11-10 09:41:55                      │
 └──────────┴──────────────────────────────────────────┘
 
+Box 2:
 CShild vault --app Discord
 ┌───────────────────────────────────────────────────┐
 │ Discord · 3 entries                               │
@@ -25,6 +27,7 @@ CShild vault --app Discord
 │ work        │ •••••••• │ work, team  │ 2026-09-02 │
 └─────────────┴──────────┴─────────────┴────────────┘
 
+Box 3:
 CShild shw [--vault] --tag gaming perso
 ┌──────────────────────────────────────────────────────────────────┐
 │ Tags: gaming, perso · 4 entries                                  │
@@ -37,6 +40,7 @@ CShild shw [--vault] --tag gaming perso
 │ Steam      │ BobEnderson │ •••••••• │ gaming, perso │ 2026-11-02 │
 └────────────┴─────────────┴──────────┴───────────────┴────────────┘
 
+Box 4:
 CShild shw --search serveur
 ┌────────────────────────────────────────────────────────────────────────────┐
 │ Search: serveur · 2 entries                                                │
