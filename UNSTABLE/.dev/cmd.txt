@@ -14,6 +14,7 @@ CShild crt [--vault] --app --id
 CShild crt [--vault] --app --id --note
 CShild crt [--vault] --app --id --tags ...
 CShild crt [--vault] --app --id --note --tags ...
+CShild crt [--vault] --app --id --password
 
 // Suppression
 CShild dlt [--vault] --app --id

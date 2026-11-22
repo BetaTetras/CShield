@@ -1092,6 +1092,160 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
     return 0;
 }
 
+int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numberOfApps){
+    if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(apps == NULL || numberOfApps == NULL){
+        LOG_ERROR("Corrupted pointer (apps == NULL || numberOfApps == NULL)");
+        return 1;
+    }
+
+    *apps = NULL; *numberOfApps = 0;
+    size_t indexor = 0;
+    double versionCShild = getVersionCShild();
+    if(versionCShild == -1){
+        LOG_ERROR("Impossible to fetch the version of CShild");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShild != versionVault){
+        LOG_ERROR("Version of CShild and the vault different");
+        return 1;
+    }
+
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_p = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_p->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - apps value is not an object");
+        return 1;
+    }
+    if(apps_p->value.object->nbOfElement == 0){
+        *apps = NULL; 
+        *numberOfApps = 0;
+        return 0;
+    }
+
+    CShildAppInfo* tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShildAppInfo));
+    if(tmp_CSI == NULL){
+        LOG_ERROR("Error while allocating memory (tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShildAppInfo*)))");
+        return 1;
+    }
+    *apps = tmp_CSI;
+    
+    int state;
+    for(size_t i=0;i<apps_p->value.object->nbOfElement;i++){
+        if(bt_strcpy(&(*apps)[i].app,apps_p->value.object->listeOfPair[i].key)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            for(size_t j=0;j<i;j++){
+                free((*apps)[j].app);
+                bt_deepFree((*apps)[j].nbOfEntries,(void**)(*apps)[j].ids);
+                free((*apps)[j].updated);
+            }
+            free(*apps);
+            *apps = NULL;
+            *numberOfApps = 0;
+            return 1;
+        }
+        state = getCShildAppInfo(&apps_p->value.object->listeOfPair[i].value,&(*apps)[i]);
+        if(state){
+            for(size_t j=0;j<i;j++){
+                free((*apps)[j].app);
+                bt_deepFree((*apps)[j].nbOfEntries,(void**)(*apps)[j].ids);
+                free((*apps)[j].updated);
+            }
+            free((*apps)[i].app);
+            free(*apps);
+            *apps = NULL;
+            *numberOfApps = 0;
+            return 1;
+        }
+    }
+
+    *numberOfApps = apps_p->value.object->nbOfElement;
+    return 0;
+}
+
+int getCShildAppInfo(JsonValue* app,CShildAppInfo* info){
+    if(app == NULL || info == NULL){
+        LOG_ERROR("Corrupted pointer (app == NULL || info == NULL)");
+        return 1;
+    }
+
+    if(app->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - app value is not an object");
+        return 1;
+    }
+
+    info->ids = NULL; info->updated = NULL;
+    info->nbOfEntries = app->value.object->nbOfElement;
+    char* closestDate = NULL;
+    for(size_t i=0;i<app->value.object->nbOfElement;i++){
+        char** tmp = realloc(info->ids,(i+1)*sizeof(char*));
+        if(tmp == NULL){
+            LOG_ERROR("Error while allocating memory (tmp = realloc(info->ids,i+1*sizeof(char*)))");
+            bt_deepFree(i,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+        info->ids = tmp;
+        info->ids[i] = NULL;
+        if(bt_strcpy(&info->ids[i],app->value.object->listeOfPair[i].key)){
+            
+            bt_deepFree(i+1,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+        if(app->value.object->listeOfPair[i].value.type != JSON_OBJECT){
+            LOG_ERROR("JSON of the vault altered - entries value is not an object");
+            bt_deepFree(i+1,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+
+        size_t indexUpdate = getIndexFromObjectWithKey(app->value.object->listeOfPair[i].value.value.object,"updated_at");
+        if(indexUpdate == (size_t)-1){
+            LOG_ERROR("JSON of the vault altered - key 'updated_at' not found");
+            bt_deepFree(i+1,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+        if(app->value.object->listeOfPair[i].value.value.object->listeOfPair[indexUpdate].value.type != JSON_STRING){
+            LOG_ERROR("JSON of the vault altered - key 'updated_at' is not a string");
+            bt_deepFree(i+1,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+        if(bt_strcmp(app->value.object->listeOfPair[i].value.value.object->listeOfPair[indexUpdate].value.value.string,closestDate) > 0){
+            closestDate = app->value.object->listeOfPair[i].value.value.object->listeOfPair[indexUpdate].value.value.string;
+        }
+    }
+    if(closestDate != NULL){
+        if(bt_strcpy(&info->updated, closestDate)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            bt_deepFree(info->nbOfEntries,(void**)info->ids);
+            info->ids = NULL;
+            info->nbOfEntries = 0;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 //////////////////////////////
 
 int getTime(char** dest){

@@ -1003,3 +1003,549 @@ int bt_boxWordMatching(const CShildEntry* entries,size_t nbOfEntries,int show,ch
     boxPrintTable(&t);
     return 0;
 }
+
+///////////////////////////// Liste des vaults (CShild vaults)
+
+#define BOX_VAULT_BAR_COLS  20     // largeur voulue de la barre de comparaison
+#define BOX_VAULT_BAR_MIN   4
+#define BOX_VAULT_NAME_MIN  6
+
+// 512 -> "512 B", 1536 -> "1.5 KB", 3145728 -> "3.0 MB"
+static void boxFormatSize(size_t bytes,char* out,size_t outSize){
+    const char* units[] = {"B","KB","MB","GB"};
+    double v = (double)bytes;
+    size_t u = 0;
+    while(v >= 1023.95 && u < 3){
+        v /= 1024.0;
+        u++;
+    }
+    if(u == 0){
+        snprintf(out,outSize,"%llu B",(unsigned long long)bytes);
+    }else{
+        snprintf(out,outSize,"%.1f %s",v,units[u]);
+    }
+}
+
+// Texte aligné à droite dans w colonnes (w >= largeur du texte)
+static void boxPutRight(const char* s,size_t w){
+    boxPutSpaces(w - boxCols(s));
+    fputs(s,stdout);
+}
+
+// Barre de w cases remplie à eighths/8 de case : cases pleines (█), une case partielle (▏ à ▉), le reste en plus sombre (░)
+static void boxPutBar(size_t eighths,size_t w,BoxRgb color){
+    const char* partial[] = {"▏","▎","▍","▌","▋","▊","▉"};
+    size_t full = eighths / 8;
+    size_t rest = eighths % 8;
+    boxFg(color,0);
+    boxPutRepeat("█",full);
+    if(rest > 0){
+        fputs(partial[rest - 1],stdout);
+    }
+    boxFg(boxScale(color,40),0);
+    boxPutRepeat("░",w - full - ((rest > 0) ? 1 : 0));
+}
+
+int bt_boxVaults(char** names,const size_t* sizes,size_t nbOfVaults){
+    if((names == NULL || sizes == NULL) && nbOfVaults > 0){
+        LOG_ERROR("Corrupted pointer (names == NULL or sizes == NULL)");
+        return 1;
+    }
+    initConsole();
+    if(nbOfVaults == 0){
+        print_INF("No vault");
+        return 0;
+    }
+
+    // Mesures : nom le plus large, taille la plus large, plus gros vault (= barre pleine) et total
+    char text[32];
+    size_t nameW = boxCols("Vault");
+    size_t sizeW = boxCols("Size");
+    size_t biggest = 0;
+    size_t total = 0;
+    for(size_t i=0;i<nbOfVaults;i++){
+        size_t w = boxCols(names[i]);
+        if(w > nameW){
+            nameW = w;
+        }
+        boxFormatSize(sizes[i],text,sizeof(text));
+        w = boxCols(text);
+        if(w > sizeW){
+            sizeW = w;
+        }
+        if(sizes[i] > biggest){
+            biggest = sizes[i];
+        }
+        total += sizes[i];
+    }
+
+    // Largeur totale = largeurs + 2 marges par colonne + les barres verticales (10 avec 3 colonnes, 7 avec 2)
+    size_t barW = BOX_VAULT_BAR_COLS;
+    size_t maxW = boxMaxWidth();
+    while(nameW + sizeW + barW + 10 > maxW){
+        if(nameW > BOX_VAULT_NAME_MIN && nameW >= barW){
+            nameW--;
+        }else if(barW > BOX_VAULT_BAR_MIN){
+            barW--;
+        }else if(nameW > BOX_VAULT_NAME_MIN){
+            nameW--;
+        }else{
+            break;
+        }
+    }
+    size_t nbCols = 3;
+    if(nameW + sizeW + barW + 10 > maxW){
+        // Toujours trop large : on retire la barre et on garde Vault et Size
+        nbCols = 2;
+        while(nameW + sizeW + 7 > maxW && nameW > 3){
+            nameW--;
+        }
+    }
+
+    BoxTable t = {0};
+    t.nbOfCols = nbCols;
+    t.cols[0].header = "Vault";
+    t.cols[0].w = nameW;
+    t.cols[1].header = "Size";
+    t.cols[1].w = sizeW;
+    t.cols[2].header = "Compare";
+    t.cols[2].w = barW;
+    BoxRgb gradStart = {250,135,125};        // corail
+    BoxRgb gradEnd = {235,200,105};          // or
+    for(size_t k=0;k<nbCols;k++){
+        t.cols[k].tint = boxMix(gradStart,gradEnd,k,nbCols);
+    }
+
+    // Titre plus large que le tableau : on élargit la dernière colonne s'il reste de la place
+    char head[] = "Vaults";
+    char tail[96];
+    boxFormatSize(total,text,sizeof(text));
+    snprintf(tail,sizeof(tail)," · %llu %s · %s",(unsigned long long)nbOfVaults,(nbOfVaults == 1) ? "vault" : "vaults",text);
+    size_t titleCols = boxCols(head) + boxCols(tail);
+    size_t avail = boxTableWidth(&t) - 4;
+    if(titleCols > avail && boxTableWidth(&t) + (titleCols - avail) <= maxW){
+        t.cols[nbCols - 1].w += titleCols - avail;
+        avail = titleCols;
+    }
+
+    // Haut
+    boxFg(BOX_FRAME,0);
+    fputs("┌",stdout);
+    boxPutRepeat("─",boxTableWidth(&t) - 2);
+    fputs("┐",stdout);
+    boxReset();
+    fputc('\n',stdout);
+
+    // Titre : « Vaults » en gras, le reste (nombre et poids total) plus discret
+    size_t limit = (titleCols <= avail) ? avail : avail - 1;
+    size_t used = 0;
+    boxFg(BOX_FRAME,0);
+    fputs("│ ",stdout);
+    boxFg(BOX_TITLE,1);
+    used += boxPutClip(head,limit - used);
+    boxFg(BOX_SUBTITLE,0);
+    used += boxPutClip(tail,limit - used);
+    if(titleCols > avail){
+        fputs("…",stdout);
+        used++;
+    }
+    boxPutSpaces(avail - used);
+    boxFg(BOX_FRAME,0);
+    fputs(" │",stdout);
+    boxReset();
+    fputc('\n',stdout);
+    boxTableRule(&t,"├","┬","┤");
+
+    // En-têtes (Size aligné à droite comme ses valeurs)
+    boxFg(BOX_FRAME,0);
+    fputs("│",stdout);
+    for(size_t k=0;k<nbCols;k++){
+        fputc(' ',stdout);
+        boxFg(boxLighten(t.cols[k].tint,40),1);
+        if(k == 1){
+            boxPutRight(t.cols[k].header,t.cols[k].w);
+        }else{
+            boxPutCell(t.cols[k].header,t.cols[k].w);
+        }
+        fputc(' ',stdout);
+        boxFg(BOX_FRAME,0);
+        fputs("│",stdout);
+    }
+    boxReset();
+    fputc('\n',stdout);
+    boxTableRule(&t,"├","┼","┤");
+
+    // Lignes : une sur deux légèrement plus sombre. La barre est proportionnelle au plus gros vault.
+    for(size_t i=0;i<nbOfVaults;i++){
+        BoxRgb tint[3];
+        for(size_t k=0;k<nbCols;k++){
+            tint[k] = (i % 2 == 1) ? boxScale(t.cols[k].tint,84) : t.cols[k].tint;
+        }
+        boxFg(BOX_FRAME,0);
+        fputs("│ ",stdout);
+        boxFg(tint[0],0);
+        boxPutCell(names[i],t.cols[0].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        boxFg(tint[1],0);
+        boxFormatSize(sizes[i],text,sizeof(text));
+        boxPutRight(text,t.cols[1].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │",stdout);
+        if(nbCols == 3){
+            size_t eighths = 0;
+            if(biggest > 0){
+                eighths = (size_t)((double)sizes[i] / (double)biggest * (double)(t.cols[2].w * 8) + 0.5);
+                if(eighths == 0 && sizes[i] > 0){
+                    eighths = 1;
+                }
+                if(eighths > t.cols[2].w * 8){
+                    eighths = t.cols[2].w * 8;
+                }
+            }
+            fputc(' ',stdout);
+            boxPutBar(eighths,t.cols[2].w,tint[2]);
+            boxFg(BOX_FRAME,0);
+            fputs(" │",stdout);
+        }
+        boxReset();
+        fputc('\n',stdout);
+    }
+    boxTableRule(&t,"└","┴","┘");
+    return 0;
+}
+
+///////////////////////////// Liste des apps (bt_boxApps) et historique des mots de passe (bt_boxPwdHistory)
+
+// Haut du cadre, total colonnes de large
+static void boxPutTop(size_t total){
+    boxFg(BOX_FRAME,0);
+    fputs("┌",stdout);
+    boxPutRepeat("─",total - 2);
+    fputs("┐",stdout);
+    boxReset();
+    fputc('\n',stdout);
+}
+
+// Ligne de titre : head en gras, tail plus discret, le tout coupé avec « … » s'il dépasse avail colonnes
+static void boxPutTitleRow(const char* head,const char* tail,size_t avail){
+    size_t titleCols = boxCols(head) + boxCols(tail);
+    size_t limit = (titleCols <= avail) ? avail : avail - 1;
+    size_t used = 0;
+    boxFg(BOX_FRAME,0);
+    fputs("│ ",stdout);
+    boxFg(BOX_TITLE,1);
+    used += boxPutClip(head,limit - used);
+    boxFg(BOX_SUBTITLE,0);
+    used += boxPutClip(tail,limit - used);
+    if(titleCols > avail){
+        fputs("…",stdout);
+        used++;
+    }
+    boxPutSpaces(avail - used);
+    boxFg(BOX_FRAME,0);
+    fputs(" │",stdout);
+    boxReset();
+    fputc('\n',stdout);
+}
+
+// En-têtes : la teinte de la colonne éclaircie, en gras. rightCol = colonne alignée à droite (-1 si aucune)
+static void boxPutHeaderRow(const BoxTable* t,int rightCol){
+    boxFg(BOX_FRAME,0);
+    fputs("│",stdout);
+    for(size_t k=0;k<t->nbOfCols;k++){
+        fputc(' ',stdout);
+        boxFg(boxLighten(t->cols[k].tint,40),1);
+        if((int)k == rightCol){
+            boxPutRight(t->cols[k].header,t->cols[k].w);
+        }else{
+            boxPutCell(t->cols[k].header,t->cols[k].w);
+        }
+        fputc(' ',stdout);
+        boxFg(BOX_FRAME,0);
+        fputs("│",stdout);
+    }
+    boxReset();
+    fputc('\n',stdout);
+}
+
+int bt_boxApps(const CShildAppInfo* apps,size_t nbOfApps){
+    if(apps == NULL && nbOfApps > 0){
+        LOG_ERROR("Corrupted pointer (apps == NULL)");
+        return 1;
+    }
+    initConsole();
+    if(nbOfApps == 0){
+        print_INF("No app");
+        return 0;
+    }
+
+    // Les ID d'une app sont mesurés et écrits comme les tags d'une entrée (séparés par ", ", coupés avec « … »)
+    char text[32];
+    char date[24];
+    size_t totalEntries = 0;
+    BoxTable t = {0};
+    t.nbOfCols = 4;
+    t.cols[0].header = "App";
+    t.cols[1].header = "Entries";
+    t.cols[2].header = "IDs";
+    t.cols[3].header = "Updated";
+    for(size_t k=0;k<4;k++){
+        t.cols[k].w = boxCols(t.cols[k].header);
+    }
+    t.cols[3].w = 10;                        // "2026-11-10"
+    for(size_t i=0;i<nbOfApps;i++){
+        CShildEntry ids = {0};
+        ids.tags = apps[i].ids;
+        ids.nbOfTags = apps[i].nbOfEntries;
+
+        size_t w = boxCols(apps[i].app);
+        if(w > t.cols[0].w){
+            t.cols[0].w = w;
+        }
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)apps[i].nbOfEntries);
+        w = boxCols(text);
+        if(w > t.cols[1].w){
+            t.cols[1].w = w;
+        }
+        w = boxTagsCols(&ids);
+        if(w > t.cols[2].w){
+            t.cols[2].w = w;
+        }
+        totalEntries += apps[i].nbOfEntries;
+    }
+    for(size_t k=0;k<4;k++){
+        size_t floorW = (boxCols(t.cols[k].header) > BOX_MIN_COL) ? boxCols(t.cols[k].header) : BOX_MIN_COL;
+        int shrinkable = (k == 0 || k == 2);
+        t.cols[k].minW = (shrinkable && floorW < t.cols[k].w) ? floorW : t.cols[k].w;
+    }
+
+    size_t maxW = boxMaxWidth();
+    size_t appNaturalW = t.cols[0].w;
+    int withIds = 1;
+    if(!boxShrinkToFit(&t,maxW)){
+        // Toujours trop large : on retire la colonne IDs (et les apps retrouvent leur largeur avant de rétrécir de nouveau)
+        t.cols[2] = t.cols[3];
+        t.nbOfCols = 3;
+        t.cols[0].w = appNaturalW;
+        withIds = 0;
+        boxShrinkToFit(&t,maxW);
+    }
+
+    BoxRgb gradStart = {70,200,110};         // émeraude
+    BoxRgb gradEnd = {90,205,175};           // vert d'eau
+    for(size_t k=0;k<t.nbOfCols;k++){
+        t.cols[k].tint = boxMix(gradStart,gradEnd,k,t.nbOfCols);
+    }
+
+    // Titre plus large que le tableau : on élargit la dernière colonne s'il reste de la place
+    char tail[96];
+    snprintf(tail,sizeof(tail)," · %llu %s · %llu %s",(unsigned long long)nbOfApps,(nbOfApps == 1) ? "app" : "apps",
+             (unsigned long long)totalEntries,(totalEntries == 1) ? "entry" : "entries");
+    size_t titleCols = boxCols("Apps") + boxCols(tail);
+    size_t avail = boxTableWidth(&t) - 4;
+    if(titleCols > avail && boxTableWidth(&t) + (titleCols - avail) <= maxW){
+        t.cols[t.nbOfCols - 1].w += titleCols - avail;
+        avail = titleCols;
+    }
+
+    boxPutTop(boxTableWidth(&t));
+    boxPutTitleRow("Apps",tail,avail);
+    boxTableRule(&t,"├","┬","┤");
+    boxPutHeaderRow(&t,1);
+    boxTableRule(&t,"├","┼","┤");
+
+    // Lignes : une sur deux légèrement plus sombre. Une app vide affiche 0, « - » et « - ».
+    for(size_t i=0;i<nbOfApps;i++){
+        BoxRgb tint[4];
+        for(size_t k=0;k<t.nbOfCols;k++){
+            tint[k] = (i % 2 == 1) ? boxScale(t.cols[k].tint,84) : t.cols[k].tint;
+        }
+        boxFg(BOX_FRAME,0);
+        fputs("│ ",stdout);
+        boxFg(tint[0],0);
+        boxPutCell(apps[i].app,t.cols[0].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        boxFg(tint[1],0);
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)apps[i].nbOfEntries);
+        boxPutRight(text,t.cols[1].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        size_t last = 2;
+        if(withIds){
+            CShildEntry ids = {0};
+            ids.tags = apps[i].ids;
+            ids.nbOfTags = apps[i].nbOfEntries;
+            boxPutTagsCell(&ids,t.cols[2].w,tint[2]);
+            boxFg(BOX_FRAME,0);
+            fputs(" │ ",stdout);
+            last = 3;
+        }
+        boxFormatDate(apps[i].updated,0,date,sizeof(date));
+        boxFg(tint[last],0);
+        boxPutCell(date,t.cols[last].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │",stdout);
+        boxReset();
+        fputc('\n',stdout);
+    }
+    boxTableRule(&t,"└","┴","┘");
+    return 0;
+}
+
+// Numéro du jour (depuis le 1970-01-01) de "AAAA-MM-JJ..." ou -1 si la date est invalide
+static long boxDayNumber(const char* iso){
+    int y;
+    int m;
+    int d;
+    if(iso == NULL || sscanf(iso,"%d-%d-%d",&y,&m,&d) != 3){
+        return -1;
+    }
+    if(y < 1970 || m < 1 || m > 12 || d < 1 || d > 31){
+        return -1;
+    }
+    if(m <= 2){
+        y--;
+    }
+    long era = y / 400;
+    long yoe = y - era * 400;
+    long doy = (153 * (m + ((m > 2) ? -3 : 9)) + 2) / 5 + d - 1;
+    long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + doe - 719468;
+}
+
+// Durée d'usage du mot de passe i : « current » pour le plus récent, sinon l'écart avec le suivant plus récent
+static void boxUsedFor(const CShildPwdHistory* h,size_t i,char* out,size_t outSize){
+    if(i == 0){
+        snprintf(out,outSize,"current");
+        return;
+    }
+    long newer = boxDayNumber(h[i - 1].date);
+    long older = boxDayNumber(h[i].date);
+    if(newer < 0 || older < 0 || newer < older){
+        snprintf(out,outSize,"-");
+    }else if(newer == older){
+        snprintf(out,outSize,"< 1 day");
+    }else if(newer - older == 1){
+        snprintf(out,outSize,"1 day");
+    }else{
+        snprintf(out,outSize,"%ld days",newer - older);
+    }
+}
+
+int bt_boxPwdHistory(const CShildEntry* entry,const CShildPwdHistory* history,size_t nbOfPasswords,int show){
+    if(entry == NULL || (history == NULL && nbOfPasswords > 0)){
+        LOG_ERROR("Corrupted pointer (entry == NULL or history == NULL)");
+        return 1;
+    }
+    initConsole();
+    if(nbOfPasswords == 0){
+        print_INF("No password history");
+        return 0;
+    }
+    show = (show != 0);
+
+    char text[32];
+    char date[24];
+    BoxTable t = {0};
+    t.nbOfCols = 5;
+    t.cols[0].header = "";
+    t.cols[1].header = "Set on";
+    t.cols[2].header = "Used for";
+    t.cols[3].header = "Length";
+    t.cols[4].header = "Password";
+    for(size_t k=0;k<5;k++){
+        t.cols[k].w = boxCols(t.cols[k].header);
+    }
+    t.cols[0].w = 1;                         // le marqueur ● du mot de passe actuel
+    t.cols[1].w = BOX_DATE_COLS;
+    for(size_t i=0;i<nbOfPasswords;i++){
+        boxUsedFor(history,i,text,sizeof(text));
+        size_t w = boxCols(text);
+        if(w > t.cols[2].w){
+            t.cols[2].w = w;
+        }
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(history[i].pwd));
+        w = boxCols(text);
+        if(w > t.cols[3].w){
+            t.cols[3].w = w;
+        }
+        w = show ? boxCols(history[i].pwd) : BOX_BULLETS_COLS;
+        if(w > t.cols[4].w){
+            t.cols[4].w = w;
+        }
+    }
+    for(size_t k=0;k<5;k++){
+        t.cols[k].minW = t.cols[k].w;
+    }
+
+    // Trop large avec les mots de passe masqués : la colonne Password ne sert à rien, on la retire
+    size_t maxW = boxMaxWidth();
+    int withPwd = 1;
+    if(!show && boxTableWidth(&t) > maxW){
+        t.nbOfCols = 4;
+        withPwd = 0;
+    }
+
+    // Dégradé vertical : bleu ciel pour le plus récent, ardoise pour le plus ancien
+    BoxRgb gradStart = {140,200,255};        // bleu ciel
+    BoxRgb gradEnd = {105,120,150};          // ardoise
+    for(size_t k=0;k<t.nbOfCols;k++){
+        t.cols[k].tint = gradStart;
+    }
+
+    char head[512];
+    snprintf(head,sizeof(head),"%s › %s",(entry->app != NULL) ? entry->app : "",(entry->id != NULL) ? entry->id : "");
+    char tail[64];
+    snprintf(tail,sizeof(tail)," · history · %llu %s",(unsigned long long)nbOfPasswords,(nbOfPasswords == 1) ? "password" : "passwords");
+    size_t titleCols = boxCols(head) + boxCols(tail);
+    size_t avail = boxTableWidth(&t) - 4;
+    if(titleCols > avail && boxTableWidth(&t) + (titleCols - avail) <= maxW){
+        t.cols[t.nbOfCols - 1].w += titleCols - avail;
+        avail = titleCols;
+    }
+
+    boxPutTop(boxTableWidth(&t));
+    boxPutTitleRow(head,tail,avail);
+    boxTableRule(&t,"├","┬","┤");
+    boxPutHeaderRow(&t,3);
+    boxTableRule(&t,"├","┼","┤");
+
+    // Lignes : la teinte descend avec l'âge, le mot de passe actuel porte le marqueur ● en gras
+    for(size_t i=0;i<nbOfPasswords;i++){
+        BoxRgb tint = boxMix(gradStart,gradEnd,i,nbOfPasswords);
+        boxFg(BOX_FRAME,0);
+        fputs("│ ",stdout);
+        boxFg(tint,(i == 0) ? 1 : 0);
+        fputs((i == 0) ? "●" : " ",stdout);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        boxFg(tint,0);
+        boxFormatDate(history[i].date,1,date,sizeof(date));
+        boxPutCell(date,t.cols[1].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        boxFg(tint,0);
+        boxUsedFor(history,i,text,sizeof(text));
+        boxPutCell(text,t.cols[2].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │ ",stdout);
+        boxFg(tint,0);
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(history[i].pwd));
+        boxPutRight(text,t.cols[3].w);
+        boxFg(BOX_FRAME,0);
+        fputs(" │",stdout);
+        if(withPwd){
+            fputc(' ',stdout);
+            boxFg(tint,0);
+            boxPutCell(show ? history[i].pwd : BOX_BULLETS,t.cols[4].w);
+            boxFg(BOX_FRAME,0);
+            fputs(" │",stdout);
+        }
+        boxReset();
+        fputc('\n',stdout);
+    }
+    boxTableRule(&t,"└","┴","┘");
+    return 0;
+}

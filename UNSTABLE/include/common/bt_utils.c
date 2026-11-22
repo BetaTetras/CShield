@@ -239,6 +239,49 @@ int bt_strii(char* str,char* part){
     return 0;
 }
 
+// strtoi = string to int
+int bt_strtoi(const char* str,int* res){
+    if(str == NULL || res == NULL){
+        return 1;
+    }
+    size_t len = bt_strlen(str);
+    if(len > 0 && str[len-1] == '\n'){
+        len--;
+    }
+    size_t i = 0;
+    int boolNeg = 0;
+    if(len > 0 && str[0] == '-'){
+        boolNeg = 1;
+        i++;
+    }
+    if(i >= len){
+        return 1;       // aucun chiffre : "", "-" ou "\n"
+    }
+
+    // On calcule en NÉGATIF : un int va jusqu'à -2147483648, mais seulement jusqu'à +2147483647.
+    // Le minimum n'a pas d'équivalent positif.
+    int result = 0;
+    for(;i<len;i++){
+        if(str[i] < '0' || str[i] > '9'){
+            return 2;   // caractère invalide
+        }
+        int digit = str[i] - '0';
+        if(result < (INT32_MIN + digit) / 10){
+            return 3;   // result * 10 - digit passerait sous INT32_MIN
+        }
+        result = result * 10 - digit;
+    }
+    if(boolNeg == 1){
+        *res = result;
+    }else{
+        if(result == INT32_MIN){
+            return 3;   // +2147483648 ne tient pas dans un int
+        }
+        *res = -result;
+    }
+    return 0;
+}
+
 int isOneOfThemEqual(const char* str,size_t nbrOfElement,...){
     va_list liste;
     va_start(liste, nbrOfElement);
@@ -276,6 +319,97 @@ int getConfPath(char** dest){
     snprintf(confPath,512,"%s/.config/conf.json",projectRoot);
     free(projectRoot);
     *dest = confPath;
+    return 0;
+}
+
+int getGenParam(GenParameter* p){
+    JsonValue conf;
+    size_t indexor;
+    int state = getConf(&conf);
+    if(state){
+        return 1;
+    }
+
+    if(conf.type != JSON_OBJECT){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (conf.json is not a object)");
+        return 1;
+    }
+
+    indexor = getIndexFromObjectWithKey(conf.value.object,"generator");
+    if(indexor == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'generator' key)");
+        return 1;
+    }
+
+    JsonValue* generator_obj = &conf.value.object->listeOfPair[indexor].value;
+    size_t indexLenght = getIndexFromObjectWithKey(generator_obj->value.object,"length");
+    if(indexLenght == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'length' key inside 'generator' object)");
+        return 1;
+    }
+    if(generator_obj->value.object->listeOfPair[indexLenght].value.type != JSON_NUMBER){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered ('lenght' value is not a integer)");
+        return 1;
+    }
+    p->lenght = generator_obj->value.object->listeOfPair[indexLenght].value.value.integer;
+    
+    size_t indexUppercase = getIndexFromObjectWithKey(generator_obj->value.object,"uppercase");
+    if(indexUppercase == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'uppercase' key inside 'generator' object)");
+        return 1;
+    }
+    if(generator_obj->value.object->listeOfPair[indexUppercase].value.type != JSON_BOOL){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered ('uppercase' value is not a boolean)");
+        return 1;
+    }
+    p->uppercase = generator_obj->value.object->listeOfPair[indexUppercase].value.value.integer;
+
+    size_t indexLowercase = getIndexFromObjectWithKey(generator_obj->value.object,"lowercase");
+    if(indexLowercase == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'lowercase' key inside 'generator' object)");
+        return 1;
+    }
+    if(generator_obj->value.object->listeOfPair[indexLowercase].value.type != JSON_BOOL){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered ('lowercase' value is not a boolean)");
+        return 1;
+    }
+    p->lowercase = generator_obj->value.object->listeOfPair[indexLowercase].value.value.integer;
+
+    size_t indexDigits = getIndexFromObjectWithKey(generator_obj->value.object,"digits");
+    if(indexDigits == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'digits' key inside 'generator' object)");
+        return 1;
+    }
+    if(generator_obj->value.object->listeOfPair[indexDigits].value.type != JSON_BOOL){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered ('digits' value is not a boolean)");
+        return 1;
+    }
+    p->digits = generator_obj->value.object->listeOfPair[indexDigits].value.value.integer;
+
+    size_t indexSymbols = getIndexFromObjectWithKey(generator_obj->value.object,"symbols");
+    if(indexSymbols == (size_t)-1){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered (no 'symbols' key inside 'generator' object)");
+        return 1;
+    }
+    if(generator_obj->value.object->listeOfPair[indexSymbols].value.type != JSON_BOOL){
+        freeValue(conf);
+        LOG_ERROR("conf.json altered ('symbols' value is not a boolean)");
+        return 1;
+    }
+    p->symbols = generator_obj->value.object->listeOfPair[indexSymbols].value.value.integer;
+
+    freeValue(conf);
     return 0;
 }
 
@@ -323,12 +457,12 @@ int getActionLoggerPath(char** dest){
 
     size_t indexPath = getIndexFromObjectWithKey(conf.value.object,"log_action_path");
     if(indexPath == (size_t)-1){
-        LOG_ERROR("conf.json altered (no \"log_action_path\" key)");
+        LOG_ERROR("conf.json altered (no 'log_action_path' key)");
         freeValue(conf);
         return 1;
     }
     if(conf.value.object->listeOfPair[indexPath].value.type != JSON_STRING){
-        LOG_ERROR("conf.json altered (\"log_action_path\" is not a string)");
+        LOG_ERROR("conf.json altered ('log_action_path' is not a string)");
         freeValue(conf);
         return 1;
     }
@@ -622,7 +756,7 @@ int writeVault(const uint8_t* src,const size_t size,const char* path){
         return 1;
     }
     if(bt_strcat(&pathTmp,".tmp")){
-        LOG_ERROR("Error while copying a string (bt_strcat(&pathTmp,\".tmp\"))");
+        LOG_ERROR("Error while copying a string (bt_strcat(&pathTmp,'.tmp'))");
         free(pathTmp);
         return 1;
     }
@@ -688,12 +822,12 @@ int getVaultsPath(char** dest){
     
     size_t indexPath = getIndexFromObjectWithKey(conf.value.object,"vaults_dir_path");
     if(indexPath == (size_t)-1){
-        LOG_ERROR("conf.json altered (no \"vaults_dir_path\" key)");
+        LOG_ERROR("conf.json altered (no 'vaults_dir_path' key)");
         freeValue(conf);
         return 1;
     }
     if(conf.value.object->listeOfPair[indexPath].value.type != JSON_STRING){
-        LOG_ERROR("conf.json altered (\"vaults_dir_path\" is not a string)");
+        LOG_ERROR("conf.json altered ('vaults_dir_path' is not a string)");
         freeValue(conf);
         return 1;
     }
@@ -726,7 +860,7 @@ int isActionLoggerActivated(void){
 
     size_t indexActionLoggerState = getIndexFromObjectWithKey(conf.value.object,"log_action");
     if(indexActionLoggerState == (size_t)-1){
-        LOG_ERROR("conf.json altered (no \"log_action\" key)");
+        LOG_ERROR("conf.json altered (no 'log_action' key)");
         freeValue(conf);
         return -1;
     }
@@ -756,6 +890,136 @@ int getValidation(void){
     }
 
     return 2;
+}
+
+int getAllVaultNameAndSize(char*** dest,size_t** sizes,size_t* numberOfSize){
+    if(dest == NULL || sizes == NULL || numberOfSize == NULL){
+        LOG_ERROR("Destination null (dest == NULL)");
+        return 1;
+    }
+    *dest = NULL; *sizes = NULL; *numberOfSize = 0;
+
+
+    char* vaultsPath = NULL;
+    int state = getVaultsPath(&vaultsPath);
+    if(state){
+        return 1;
+    }
+
+    DIR *d = opendir(vaultsPath);
+    if(d == NULL){
+        free(vaultsPath);
+        LOG_ERROR("Impossible to open a dir (DIR *d = opendir(vaultsPath))");
+        return 1;
+    }
+    struct dirent *e;
+    
+    size_t index = 0;
+    while((e = readdir(d)) != NULL){
+        if(bt_strcmp(e->d_name,".") == 0 || bt_strcmp(e->d_name,"..") == 0){
+            continue;
+        }
+        char* vaultName = NULL;
+        state = parseVaultName(&vaultName,e->d_name);
+        if(state){
+            free(vaultName);
+            continue;
+        }
+
+        char** tmp_str = realloc(*dest,(index+1)*sizeof(char*));
+        if(tmp_str == NULL){
+            LOG_ERROR("Error while allocating memory ( tmp_str = realloc(*dest,(index+1)*sizeof(char*)))");
+            free(vaultName);
+            closedir(d);
+            free(vaultsPath);
+            bt_deepFree(index,(void**)*dest);
+            free(*sizes);
+            *dest = NULL;
+            *sizes = NULL;
+            *numberOfSize = 0;
+            return 1;
+        }
+        *dest = tmp_str;
+        size_t* tmp_size = realloc(*sizes,(index+1)*sizeof(size_t));
+        if(tmp_size == NULL){
+            LOG_ERROR("Error while allocating memory (tmp_size = realloc(*sizes,(index+1)*sizeof(size_t)))");
+            free(vaultName);
+            closedir(d);
+            free(vaultsPath);
+            bt_deepFree(index,(void**)*dest);
+            free(*sizes);
+            *dest = NULL;
+            *sizes = NULL;
+            *numberOfSize = 0;
+            return 1;
+        }
+        *sizes = tmp_size;
+
+        (*dest)[index] = vaultName;
+
+        char* vaultPath = NULL;
+        state = getVaultPathFromName(&vaultPath,vaultName);
+        if(state){
+            free(vaultName);
+            closedir(d);
+            free(vaultsPath);
+            bt_deepFree(index,(void**)*dest);
+            free(*sizes);
+            *dest = NULL;
+            *sizes = NULL;
+            *numberOfSize = 0;
+            return 1;
+        }   
+        
+        state = getSizeFromPath(vaultPath,&(*sizes)[index]);
+        if(state){
+            closedir(d);
+            free(vaultPath);
+            free(vaultName);
+            free(vaultsPath);
+            bt_deepFree(index,(void**)*dest);
+            free(*sizes);
+            *dest = NULL;
+            *sizes = NULL;
+            *numberOfSize = 0;
+            return 1;
+        }
+        free(vaultPath);
+
+        index ++;
+    }
+
+    closedir(d);
+    free(vaultsPath);
+    *numberOfSize = index;
+    return 0;
+}
+
+int getSizeFromPath(char* path, size_t* dest){
+    if(path == NULL || dest == NULL){
+        LOG_ERROR("Corrupted pointer (path == NULL || dest == NULL)");
+        return 1;
+    }
+    FILE* f = fopen(path,"rb");
+    if(f == NULL){
+        LOG_ERROR("Impossible to open a file (fopen(path,\"rb\"))");
+        return 1; 
+    }
+
+    if(fseek(f,0,SEEK_END) != 0){
+        fclose(f);
+        LOG_ERROR("Impossible to go a the end of a file (fseek(f,0,SEEK_END))");
+        return 1;
+    }
+    long len = ftell(f);
+    fclose(f);
+    if(len < 0){
+        LOG_ERROR("State impossible, len negative");
+        return 1; 
+    }
+
+    *dest = (size_t)len;
+    return 0;
 }
 
 void bt_multiFree(size_t numberToFree,...){
@@ -794,6 +1058,13 @@ void bt_freeCShildEntry(CShildEntry *entry){
     *entry = (CShildEntry){0};
 }
 
+void bt_freeCShildAppInfo(CShildAppInfo* info){
+    bt_multiFree(2,info->app,info->updated);
+    bt_deepFree(info->nbOfEntries,(void**)info->ids);
+
+    *info = (CShildAppInfo){0};
+}
+
 void nukeString(char* str,size_t size){
     volatile char* p = str;
     for(size_t i=0;i<size;i++){
@@ -807,7 +1078,7 @@ int initNewBlankVault(char* nomVault){
         return 1;
     }
     // Nom invalide : vide, commence par '.', ou contient un caractère de chemin / interdit sous Windows
-    if(nomVault[0] == '\0' || nomVault[0] == '.' || bt_strpbrk(nomVault,"/\\:*?\"<>|") != -1){
+    if(nomVault[0] == '\0' || nomVault[0] == '.' || bt_strpbrk(nomVault,"/\\:*?'<>|") != -1){
         return 2;
     }
     if(vaultAreadyCreated(nomVault) == 1){
@@ -984,16 +1255,20 @@ int initNewBlankVault(char* nomVault){
         return 0;
     }
 
-    int bt_pwdGen(char** dest,size_t length,int uppercase,int lowercase,int digits,int symbols){
+    int bt_pwdGen(char** dest,GenParameter p){
         if(dest == NULL){
             LOG_ERROR("The destination was null (dest == NULL)");
             return 1;
         }
-        if(uppercase == 0 && lowercase == 0 && digits == 0 && symbols == 0){
+        if(p.uppercase == 0 && p.lowercase == 0 && p.digits == 0 && p.symbols == 0){
+            return 1;
+        }
+        if(p.lenght <= 0){
+            LOG_ERROR("Trying to generate a blank password (Whyyyyyy)");
             return 1;
         }
 
-        char* tmp = realloc(*dest,(length+1) * sizeof(char));
+        char* tmp = realloc(*dest,(p.lenght+1) * sizeof(char));
         if(tmp == NULL){
             LOG_ERROR("Error while allocating memory (tmp = realloc(*dest,(length+1) * sizeof(char)))");
             return 1;
@@ -1004,37 +1279,45 @@ int initNewBlankVault(char* nomVault){
         char* alphabet = NULL;
 
         int state = 0;
-        if(uppercase){
+        if(p.uppercase){
             state = bt_strcat(&alphabet,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
             if(state){
                 free(alphabet);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 26;
         }
-        if(lowercase){
+        if(p.lowercase){
             state = bt_strcat(&alphabet,"abcdefghijklmnopqrstuvwxyz");
             if(state){
                 free(alphabet);
+                free(*dest); 
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 26;
         }
-        if(digits){
+        if(p.digits){
             state = bt_strcat(&alphabet,"0123456789");
             if(state){
                 free(alphabet);
+                free(*dest); 
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 10;
         }
-        if(symbols){
+        if(p.symbols){
             state = bt_strcat(&alphabet,"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
             if(state){
                 free(alphabet);
+                free(*dest); 
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
@@ -1043,11 +1326,14 @@ int initNewBlankVault(char* nomVault){
 
         int limite = 256 - (256 % len_alphabet);
         size_t index = 0;
-        while(index < length){
+        while(index < (size_t)p.lenght){
             unsigned char oct;
             NTSTATUS st = BCryptGenRandom(NULL, &oct, 1, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
             if(st != 0){
                 free(alphabet);
+                nukeString(*dest,p.lenght+1);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Random generation failed (BCryptGenRandom)");
                 return 1;
             }
@@ -1057,7 +1343,7 @@ int initNewBlankVault(char* nomVault){
             (*dest)[index] = alphabet[oct % len_alphabet];
             index ++;
         }
-        (*dest)[length] = '\0';
+        (*dest)[p.lenght] = '\0';
 
         free(alphabet);
         return 0;
@@ -1155,18 +1441,22 @@ int initNewBlankVault(char* nomVault){
         return 0;
     }
 
-    int bt_pwdGen(char** dest,size_t length,int uppercase,int lowercase,int digits,int symbols){
+    int bt_pwdGen(char** dest,GenParameter p){
         if(dest == NULL){
             LOG_ERROR("The destination was null (dest == NULL)");
             return 1;
         }
-        if(uppercase == 0 && lowercase == 0 && digits == 0 && symbols == 0){
+        if(p.uppercase == 0 && p.lowercase == 0 && p.digits == 0 && p.symbols == 0){
+            return 1;
+        }
+        if(p.lenght <= 0){
+            LOG_ERROR("Trying to generate a blank password (Whyyyyyy)");
             return 1;
         }
 
-        char* tmp = realloc(*dest,(length+1) * sizeof(char));
+        char* tmp = realloc(*dest,(p.lenght+1) * sizeof(char));
         if(tmp == NULL){
-            LOG_ERROR("Error while allocating memory (tmp = realloc(*dest,(length+1) * sizeof(char)))");
+            LOG_ERROR("Error while allocating memory (tmp = realloc(*dest,(lenght+1) * sizeof(char)))");
             return 1;
         }
         *dest = tmp;
@@ -1175,37 +1465,45 @@ int initNewBlankVault(char* nomVault){
         char* alphabet = NULL;
 
         int state = 0;
-        if(uppercase){
+        if(p.uppercase){
             state = bt_strcat(&alphabet,"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
             if(state){
                 free(alphabet);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 26;
         }
-        if(lowercase){
+        if(p.lowercase){
             state = bt_strcat(&alphabet,"abcdefghijklmnopqrstuvwxyz");
             if(state){
                 free(alphabet);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 26;
         }
-        if(digits){
+        if(p.digits){
             state = bt_strcat(&alphabet,"0123456789");
             if(state){
                 free(alphabet);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
             len_alphabet += 10;
         }
-        if(symbols){
+        if(p.symbols){
             state = bt_strcat(&alphabet,"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
             if(state){
                 free(alphabet);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Error while building the alphabet (bt_strcat)");
                 return 1;
             }
@@ -1214,10 +1512,13 @@ int initNewBlankVault(char* nomVault){
 
         int limite = 256 - (256 % len_alphabet);
         size_t index = 0;
-        while(index < length){
+        while(index < (size_t)p.lenght){
             unsigned char oct;
             if(getrandom(&oct, 1, 0) != 1){
                 free(alphabet);
+                nukeString(*dest,p.lenght+1);
+                free(*dest);
+                *dest = NULL;
                 LOG_ERROR("Random generation failed (getrandom)");
                 return 1;
             }
@@ -1227,7 +1528,7 @@ int initNewBlankVault(char* nomVault){
             (*dest)[index] = alphabet[oct % len_alphabet];
             index ++;
         }
-        (*dest)[length] = '\0';
+        (*dest)[p.lenght] = '\0';
 
         free(alphabet);
         return 0;

@@ -68,7 +68,8 @@ int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p);
 int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
 int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
 int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
-
+int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numberOfApps);
+int getCShildAppInfo(JsonValue* app,CShildAppInfo* info);
 
 // Date et heure actuelles en UTC au format "2026-11-05T14:32:10Z".
 // *dest reçoit une nouvelle chaîne (21 octets), à libérer avec free.

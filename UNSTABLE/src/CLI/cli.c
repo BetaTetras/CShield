@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
         }
+
         state = getVaultPathFromName(&vaultPath,argv[2]);
         if(state == 1){
             print_ERR(ERR_SYSTEM_MSG);
@@ -149,6 +150,83 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
+        if(e.newPassword == 1){
+            printf("Enter the new password : ");
+            state = bt_fgetss(&e.pwd);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }else if(state != 0){
+                print_WRN("The entered password is empty");
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }
+
+            char* buffer = NULL;
+            printf("Enter the new password again: ");
+            state = bt_fgetss(&buffer);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                nukeString(e.pwd,bt_strlen(e.pwd));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                free(e.pwd);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }else if(state != 0){
+                print_WRN("The entered password is empty");
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                nukeString(e.pwd,bt_strlen(e.pwd));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                free(e.pwd);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }
+            if(bt_strcmp(e.pwd,buffer) != 0){
+                print_WRN("The two password are not the same");
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                nukeString(e.pwd,bt_strlen(e.pwd));
+                nukeString(buffer,bt_strlen(buffer));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                free(e.pwd);
+                free(buffer);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }
+            nukeString(buffer,bt_strlen(buffer));
+            free(buffer);
+        }
+
         JsonValue vaultRoot = initCson((char*)b_decryptedVault);
 
         state = addEntry(&vaultRoot,e);
@@ -157,10 +235,12 @@ int main(int argc, char *argv[]) {
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_encryptedVault);
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -169,10 +249,12 @@ int main(int argc, char *argv[]) {
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_encryptedVault);
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -181,10 +263,12 @@ int main(int argc, char *argv[]) {
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_encryptedVault);
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -196,10 +280,12 @@ int main(int argc, char *argv[]) {
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_encryptedVault);
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -215,9 +301,11 @@ int main(int argc, char *argv[]) {
         if(AES_GCM_Encrypt_returnCodeHandler(state)){
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -229,10 +317,12 @@ int main(int argc, char *argv[]) {
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
+            nukeString(e.pwd,bt_strlen(e.pwd));
             free(b_encryptedVault);
             free(b_decryptedVault);
             free(vaultPWD);
             free(vaultPath);
+            free(e.pwd);
             freeValue(vaultRoot);
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
@@ -244,11 +334,13 @@ int main(int argc, char *argv[]) {
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
         uint8_tToZero(b_decryptedVault,size_decryptedVault);
         nukeString(vaultPWD,bt_strlen(vaultPWD));
+        nukeString(e.pwd,bt_strlen(e.pwd));
 
         free(b_encryptedVault);
         free(b_decryptedVault);
         free(vaultPWD);
         free(vaultPath);
+        free(e.pwd);
         freeValue(vaultRoot);
         bt_deepFree(e.nbOfTags,(void**)e.tags);
 
@@ -974,9 +1066,45 @@ int main(int argc, char *argv[]) {
                 bt_freeCShildEntry(&entries[i]);
             }
             free(entries);
-        }
+        }else if(box == 6){
+            CShildAppInfo* apps = NULL;
+            size_t numberOfApp = 0;
+            state = getCShildAllAppsInfo(&vaultRoot,&apps,&numberOfApp);
+            if(state){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
 
-        print_SUC("Result printed successfully");
+            state = bt_boxApps(apps,numberOfApp);
+            for(size_t i=0;i<numberOfApp;i++){
+                bt_freeCShildAppInfo(&(apps)[i]);
+            }
+            free(apps);
+            if(state){
+                print_ERR("Something when wrong while printing bt_boxApps");
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+        }
 
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
         uint8_tToZero(b_decryptedVault,size_decryptedVault);
@@ -993,7 +1121,31 @@ int main(int argc, char *argv[]) {
         break;
     }
     case gen:{
-        print_INF("methode gen not implemented");
+        CShildParams e;
+
+        state = fillUpEntryFromARGV(&e,argv,argc,m);
+        if(state == 1){
+            return 1;
+        }
+
+        char* generatedString = NULL;
+        state = bt_pwdGen(&generatedString,e.genParam);
+        if(state == 1){
+            print_ERR(ERR_SYSTEM_MSG);
+            return 1;
+        }
+
+        print_SUC("Password generated");
+
+        printf("\n  Length  %d\n",e.genParam.lenght);
+        printf("  A-Z ");if(e.genParam.uppercase){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}
+        printf("   a-z ");if(e.genParam.lowercase){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}
+        printf("   0-9 ");if(e.genParam.digits){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}
+        printf("   sym ");if(e.genParam.symbols){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}
+        printf("\n\n");
+
+        printf("  %s\n\n",generatedString);
+
         break;
     }
     case mng:{
@@ -1093,7 +1245,27 @@ int main(int argc, char *argv[]) {
             free(pathNewVault);
 
         }else if(bt_strcmp(argv[1],"vaults") == 0){
+            if(argc > 2 ){
+                print_WRN("Too many parameters (%d)",argc);
+                return 1;
+            }else if(argc < 2){
+                print_WRN("Not enough parameters (%d)",argc);
+                return 1;
+            }
+            char** listeOfVaultName = NULL;
+            size_t* listeOfVaultSize = NULL;
+            size_t numberOfVault;
+            state = getAllVaultNameAndSize(&listeOfVaultName,&listeOfVaultSize,&numberOfVault);
+            if(state){
+                print_ERR(ERR_SYSTEM_MSG);
+                return 1;
+            }
+            if(bt_boxVaults(listeOfVaultName,listeOfVaultSize,numberOfVault)){
+                print_ERR("Something when wrong while printing bt_boxVaults");
+                return 1;
+            }
 
+            break;
         }else if(bt_strcmp(argv[1],"password") == 0){
             // 1. On vérifie que le nombre de param est correcte
             if(argc > 3 ){
@@ -1511,21 +1683,6 @@ int main(int argc, char *argv[]) {
             printf_RGB(148,163,184,"0-9 ");if(digits){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("   ");
             printf_RGB(148,163,184,"sym ");if(symbols){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("\n");
             printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
-            
-            // printf("Path :\n");
-            // printf("    Config       %s\n",configPath);
-            // printf("    Vaults       %s\n",vaultPath);
-            // printf("    Error logs   %s\n",errorLogPath);
-            // printf("    Action logs  %s\n",actionLogPath);
-            // printf("Configuation :\n");
-            // printf("    PBKDF2 iteration   %d\n",PBKDF2_iteration);
-            // printf("    Log action         ");if(logActionStatu == 1){printf_RGB(0,255,0,"true\n");}else{printf_RGB(255,0,0,"false\n");};
-            // printf("Generation configuarion:\n");
-            // printf("    Lenght      %d char\n",length);
-            // printf("    Uppercase   ");if(uppercase == 1){printf_RGB(0,255,0,"true\n");}else{printf_RGB(255,0,0,"false\n");};
-            // printf("    Lowercase   ");if(lowercase == 1){printf_RGB(0,255,0,"true\n");}else{printf_RGB(255,0,0,"false\n");};
-            // printf("    Digits      ");if(digits == 1){printf_RGB(0,255,0,"true\n");}else{printf_RGB(255,0,0,"false\n");};
-            // printf("    Symbole     ");if(symbols == 1){printf_RGB(0,255,0,"true\n");}else{printf_RGB(255,0,0,"false\n");};
 
             freeValue(conf);
             free(configPath);
@@ -1550,7 +1707,7 @@ int main(int argc, char *argv[]) {
             printf_RGB(96,165,250,"  %-15s%-6s","--remove-tags","-rt");printf_RGB(148,163,184,"Remove tags (modify only)");printf("\n");
             printf_RGB(96,165,250,"  %-15s%-6s","--new-app","-na");printf_RGB(148,163,184,"Rename an application (modify only)");printf("\n");
             printf_RGB(96,165,250,"  %-15s%-6s","--new-id","-ni");printf_RGB(148,163,184,"Rename an entry (modify only)");printf("\n");
-            printf_RGB(96,165,250,"  %-15s%-6s","--password","-p");printf_RGB(148,163,184,"Change the password (modify only)");printf("\n");
+            printf_RGB(96,165,250,"  %-15s%-6s","--password","-p");printf_RGB(148,163,184,"Set or change the password (create and modify only)");printf("\n");
             printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
             printf_RGB(148,163,184,"  Examples");printf("\n");
             printf_RGB(74,222,128,"  cshild crt perso --app Google --id main --tags mail perso");printf("\n");
@@ -1599,6 +1756,104 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
     char** searchedWords = NULL;
 
     *e = (CShildParams){0};
+
+    if(m == gen){
+        GenParameter genParam;
+        state = getGenParam(&genParam);
+        if(state == 1){
+            print_ERR(ERR_SYSTEM_MSG);
+            return 1;
+        }
+        int len=genParam.lenght,up=genParam.uppercase,low=genParam.lowercase,dig=genParam.digits,sym=genParam.symbols;
+        int lenP=0,upP=0,lowP=0,digP=0,symP=0;
+        for(int i=2;i<argc;i++){
+            if(isOneOfThemEqual(argv[i],2,"--length","-len")){
+                if(lenP == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                lenP = 1;
+                if(i+1 >= argc){
+                    print_WRN("Lenght value missing after '%s' flags",argv[i]);
+                    return 1;
+                }
+                if(argv[i+1][0] == '-'){
+                    print_WRN("Must enter a valide number after '%s' flag",argv[i]);
+                    return 1;
+                }
+                int lengthARGV;
+                state = bt_strtoi(argv[i+1],&lengthARGV);
+                if(state == 1){
+                    print_WRN("Not an valide entry for '%s' value",argv[i]);
+                    return 1;
+                }else if(state == 2){
+                    print_WRN("Not an integer");
+                    return 1;
+                }else if(state == 3){
+                    print_WRN("Lenght too long to enter inside a integer (2147483648 char ... Seriously ?)");
+                    return 1;
+                }
+                if(lengthARGV == 0){
+                    print_WRN("You can't have a password with a length of 0 char");
+                    return 1;
+                }
+                len = lengthARGV;
+                i++;
+            }else if(isOneOfThemEqual(argv[i],2,"--uppercase","-up")){
+                if(upP == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                upP = 1; 
+                up = 1;
+            }else if(isOneOfThemEqual(argv[i],2,"--lowercase","-low")){
+                if(lowP == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                lowP = 1; 
+                low = 1;
+            }else if(isOneOfThemEqual(argv[i],2,"--digits","-dig")){
+                if(digP == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                digP = 1; 
+                dig = 1;
+            }else if(isOneOfThemEqual(argv[i],2,"--symbols","-sym")){
+                if(symP == 1){
+                    print_WRN("Parameter '%s' already use",argv[i]);
+                    bt_deepFree(numOfTags, (void**)tags);
+                    bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                    return 1;
+                }
+                symP = 1; 
+                sym = 1;
+            }else{
+                print_WRN("Flag '%s' unknow or useless while generating a password",argv[i]);
+                return 1;
+            }
+        }
+
+        e->genParam.lenght = len;
+        e->genParam.uppercase = up;
+        e->genParam.lowercase = low;
+        e->genParam.digits = dig;
+        e->genParam.symbols = sym;
+        return 0;
+    }if(m == shw){
+        if(argc == 4 && isOneOfThemEqual(argv[3],2,"--app","-a")){
+            return 0;
+        }
+    }
 
     for(int i=3;i<argc;i++){
         if(isOneOfThemEqual(argv[i],2,"--app","-a")){
@@ -1965,28 +2220,27 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
             paramSHOW = 1;
             e->show = 1;
         }else if(isOneOfThemEqual(argv[i],2,"--password","-p")){
-            if(m != mdf){
-                if(m == crt){
-                    print_WRN("The parameter '--password' is useless while creating an entry");
-                }else if(m == dlt){
+            if(m == dlt || m == shw){
+                if(m == dlt){
                     print_WRN("The parameter '--password' is useless while deleting an entry");
-                }else if(m == shw){
+                }else{
                     print_WRN("The parameter '--password' is useless while exposing an entry");
                 }
-                if(i+1 >= argc){
-                    continue;
-                }else if(argv[i+1][0] != '-'){
+                if(i+1 < argc && argv[i+1][0] != '-'){
                     print_INF("Password is NEVER entered through parameters");
                     i++;
                 }
                 continue;
             }
 
-            if(paramNewApp == 1){
-                print_WRN("The parameter '--password' is useless while changing the name of an app");
-            }if(paramNewID == 1){
-                print_WRN("The parameter '--password' is useless while changing the name of an ID");
+            if(m == mdf){
+                if(paramNewApp == 1){
+                    print_WRN("The parameter '--password' is useless while changing the name of an app");
+                }if(paramNewID == 1){
+                    print_WRN("The parameter '--password' is useless while changing the name of an ID");
+                }
             }
+
             if(paramNewPwd == 1){
                 print_WRN("Parameter '%s' already use",argv[i]);
                 bt_deepFree(numOfTags, (void**)tags);
@@ -2125,17 +2379,17 @@ static int fillUpEntryFromARGV(CShildParams* e,char* argv[],int argc,methode m){
     return 0;
 }
 
-static int witchBox(CShildParams p){
+static int witchBox(CShildParams p){    
     if(p.tags != NULL){
         return 3;
     }else if(p.searchedWords != NULL){
         return 4;
-    }else if(p.app != NULL){
-        if(p.id != NULL){
-            return 1;
-        }else{
-            return 2;
-        }
+    }else if(p.app != NULL && p.id != NULL){
+        return 1;
+    }else if(p.app != NULL && p.id == NULL){
+        return 2;
+    }else if(p.app == NULL && p.id == NULL){
+        return 6;
     }
 
     return 0;
