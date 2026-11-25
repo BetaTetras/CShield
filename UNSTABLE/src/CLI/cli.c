@@ -223,6 +223,50 @@ int main(int argc, char *argv[]) {
             }
             nukeString(buffer,bt_strlen(buffer));
             free(buffer);
+        }else{
+            print_WRN("No password provided through '--password' flags. Generate one thanks with the conf ?");
+            printf("Accept ? : ");printf("[");char_RGB(0,255,0,'Y');printf("/");char_RGB(255,0,0,'n');printf("] : ");
+            state = getValidation();
+            if(state == 1){
+                GenParameter p;
+                state = getGenParam(&p);
+                if(state == 1){
+                    print_ERR(ERR_SYSTEM_MSG);
+                    uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                    uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                    nukeString(vaultPWD,bt_strlen(vaultPWD));
+                    free(b_encryptedVault);
+                    free(b_decryptedVault);
+                    free(vaultPWD);
+                    free(vaultPath);
+                    bt_deepFree(e.nbOfTags,(void**)e.tags);
+                    return 1;
+                }
+                state = bt_pwdGen(&e.pwd,p);
+                if(state == 1){
+                    print_ERR(ERR_SYSTEM_MSG);
+                    uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                    uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                    nukeString(vaultPWD,bt_strlen(vaultPWD));
+                    free(b_encryptedVault);
+                    free(b_decryptedVault);
+                    free(vaultPWD);
+                    free(vaultPath);
+                    bt_deepFree(e.nbOfTags,(void**)e.tags);
+                    return 1;
+                }
+            }else if(state == 2){
+                print_WRN("Not a valid respond, action canceled (Must respond with 'Y' or 'N')");
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                return 1;
+            }
         }
 
         JsonValue vaultRoot = initCson((char*)b_decryptedVault);
