@@ -284,14 +284,14 @@ int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag){
                     LOG_ERROR("JSON of the vault altered - key 'note' not found");
                     return 1;
                 }
-                char* buffeurNote = NULL;
-                state = bt_strcpy(&buffeurNote,entry.note);
-                if(state == 1){
-                    LOG_ERROR("Copy of a string failed (bt_strcpy)");
+
+                JsonValue note_v;
+                if(newJsonString(&note_v,entry.note)){
+                    LOG_ERROR("newJsonValue have failed (newJsonString(&note_v,entry.note))");
                     return 1;
                 }
                 freeValue(selectedObject->listeOfPair[indexNote].value);
-                selectedObject->listeOfPair[indexNote].value.value.string = buffeurNote;
+                selectedObject->listeOfPair[indexNote].value = note_v;
             }
             if(entry.newPassword == 1){
                 state = modPassword(selectedObject,entry.pwd);
@@ -316,9 +316,14 @@ int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag){
                         return 1;
                     }
                     for(size_t i=0;i<entry.nbOfTags;i++){
-                        JsonValue tag = initJsonValue(JSON_STRING);
-                        tag.value.string = entry.tags[i];
+                        JsonValue tag;
+                        if(newJsonString(&tag,entry.tags[i])){
+                            LOG_ERROR("newJsonValue have failed (newJsonString(&tag,entry.tags[i]))");
+                            freeValue(newTags);
+                            return 1;
+                        }
                         state = addToArray(newTags.value.array,tag,i);
+                        freeValue(tag);
                         if(state == 1){
                             LOG_ERROR("Adding a new value in an array failed (addToArray)");
                             freeValue(newTags);
@@ -331,14 +336,19 @@ int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag){
                 }else if(entry.tagsMethode == 2){
                     size_t nomberDeTag = selectedObject->listeOfPair[indexTags].value.value.array->nbOfElement;
                     for(size_t i = nomberDeTag;i<nomberDeTag+entry.nbOfTags;i++){
-                        JsonValue newtag = initJsonValue(JSON_STRING);
-                        newtag.value.string = entry.tags[i-nomberDeTag];
+                        JsonValue newtag;
+                        if(newJsonString(&newtag,entry.tags[i-nomberDeTag])){
+                            LOG_ERROR("newJsonValue have failed (newJsonString(&newtag,entry.tags[i-nomberDeTag]))");
+                            return 1;
+                        }
                         if(getIndexFromArray(selectedObject->listeOfPair[indexTags].value.value.array,newtag) != (size_t)-1){
                             // Le tag existe deja
+                            freeValue(newtag);
                             *indexBadTag = i-nomberDeTag;
                             return 7;
                         }
                         state = addToArray(selectedObject->listeOfPair[indexTags].value.value.array,newtag,i);
+                        freeValue(newtag);
                         if(state == 1){
                             LOG_ERROR("Adding a new value in an array failed (addToArray)");
                             return 1;
@@ -346,9 +356,13 @@ int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag){
                     }
                 }else if(entry.tagsMethode == 3){
                     for(size_t i = 0;i<entry.nbOfTags;i++){
-                        JsonValue targetTag = initJsonValue(JSON_STRING);
-                        targetTag.value.string = entry.tags[i];
+                        JsonValue targetTag;
+                        if(newJsonString(&targetTag,entry.tags[i])){
+                            LOG_ERROR("newJsonValue have failed (newJsonString(&targetTag,entry.tags[i]))");
+                            return 1;
+                        }
                         size_t indexToErase = getIndexFromArray(selectedObject->listeOfPair[indexTags].value.value.array,targetTag);
+                        freeValue(targetTag);
                         if(indexToErase == (size_t)-1){
                             // Le tag n'existe pas
                             *indexBadTag = i;
@@ -451,19 +465,14 @@ int modPassword(JsonObject *obj,char* newPassword){
             return 1;
         }
     }
-
-    char* buffer = NULL;
-    state = bt_strcpy(&buffer,newPassword);
-    if(state == 1){
-        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+    JsonValue newPassword_v;
+    if(newJsonString(&newPassword_v,newPassword)){
+        LOG_ERROR("newJsonValue have failed (newJsonString(&newPassword_v,newPassword))");
         return 1;
     }
-    char* oldPassword_str = obj->listeOfPair[indexPassword].value.value.string;
-    stringToZero(oldPassword_str,bt_strlen(oldPassword_str)+1);
+    freeValue(obj->listeOfPair[indexPassword].value);
+    obj->listeOfPair[indexPassword].value = newPassword_v;
     stringToZero(newPassword,bt_strlen(newPassword)+1);
-    free(oldPassword_str);
-
-    obj->listeOfPair[indexPassword].value.value.string = buffer;
 
     return 0;
 }
@@ -492,8 +501,8 @@ int getEntry(JsonValue entries,CShieldEntry *e,int show){
             *e = (CShieldEntry){0};
             return 1;
         }
-        if(bt_strcpy(&e->pwd,entries.value.object->listeOfPair[indexPassword].value.value.string)){
-            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        if(unescapeString(&e->pwd,entries.value.object->listeOfPair[indexPassword].value.value.string)){
+            LOG_ERROR("Decoding of a string failed (unescapeString)");
             nukeString(e->pwd,bt_strlen(e->pwd));
             bt_deepFree(e->nbOfTags,(void**)e->tags);
             bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
@@ -510,8 +519,8 @@ int getEntry(JsonValue entries,CShieldEntry *e,int show){
         *e = (CShieldEntry){0};
         return 1;
     }
-    if(bt_strcpy(&e->note,entries.value.object->listeOfPair[indexNote].value.value.string)){
-        LOG_ERROR("Copy of a string failed (bt_strcpy)");
+    if(unescapeString(&e->note,entries.value.object->listeOfPair[indexNote].value.value.string)){
+        LOG_ERROR("Decoding of a string failed (unescapeString)");
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
@@ -539,8 +548,8 @@ int getEntry(JsonValue entries,CShieldEntry *e,int show){
         return 1;
     }
     for(size_t i=0;i<nbOfTags;i++){
-        if(bt_strcpy(&e->tags[i],entries.value.object->listeOfPair[indexTags].value.value.array->listeOfValue[i].value.string)){
-            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        if(unescapeString(&e->tags[i],entries.value.object->listeOfPair[indexTags].value.value.array->listeOfValue[i].value.string)){
+            LOG_ERROR("Decoding of a string failed (unescapeString)");
             nukeString(e->pwd,bt_strlen(e->pwd));
             bt_deepFree(e->nbOfTags,(void**)e->tags);
             bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
@@ -665,7 +674,7 @@ int getAllFromApp(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CS
             *numberOfEntry = 0;
             return 1;
         }
-        if(bt_strcpy(&(*e)[i].id,entry_v->value.object->listeOfPair[i].key)){
+        if(unescapeString(&(*e)[i].id,entry_v->value.object->listeOfPair[i].key)){
             for(size_t j=0;j<=i;j++){
                 nukeString((*e)[j].pwd,bt_strlen((*e)[j].pwd));
                 bt_deepFree((*e)[j].nbOfTags,(void**)(*e)[j].tags);
@@ -838,8 +847,8 @@ int getMatchingTags(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,
             }
             state = isOneTagsMatching(buffer_e.tags,buffer_e.nbOfTags,p.tags,p.nbOfTags,p.OpeLogTAGS);
             if(state == 1){
-                if(bt_strcpy(&buffer_e.app,appName_p) == 1){
-                    LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                if(unescapeString(&buffer_e.app,appName_p) == 1){
+                    LOG_ERROR("Decoding of a string failed (unescapeString)");
                     bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
                         bt_freeCShieldEntry(&(*e)[k]);
@@ -850,8 +859,8 @@ int getMatchingTags(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,
                     return 1;
                 }
 
-                if(bt_strcpy(&buffer_e.id,idName_p) == 1){
-                    LOG_ERROR("Copy of a string failed (bt_strcpy)");
+                if(unescapeString(&buffer_e.id,idName_p) == 1){
+                    LOG_ERROR("Decoding of a string failed (unescapeString)");
                     bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
                         bt_freeCShieldEntry(&(*e)[k]);
@@ -962,8 +971,8 @@ int getMatchingWord(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,
                 *numberOfEntry = 0;
                 return 1;
             }
-            if(bt_strcpy(&buffer_e.app,appName_p) == 1){
-                LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            if(unescapeString(&buffer_e.app,appName_p) == 1){
+                LOG_ERROR("Decoding of a string failed (unescapeString)");
                 bt_freeCShieldEntry(&buffer_e);
                 for(size_t k=0;k<*numberOfEntry;k++){
                     bt_freeCShieldEntry(&(*e)[k]);
@@ -974,8 +983,8 @@ int getMatchingWord(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,
                 return 1;
             }
 
-            if(bt_strcpy(&buffer_e.id,idName_p) == 1){
-                LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            if(unescapeString(&buffer_e.id,idName_p) == 1){
+                LOG_ERROR("Decoding of a string failed (unescapeString)");
                 bt_freeCShieldEntry(&buffer_e);
                 for(size_t k=0;k<*numberOfEntry;k++){
                     bt_freeCShieldEntry(&(*e)[k]);
@@ -1063,8 +1072,8 @@ int getCShieldAllAppsInfo(JsonValue* vaultRoot,CShieldAppInfo** apps,size_t* num
     
     int state;
     for(size_t i=0;i<apps_p->value.object->nbOfElement;i++){
-        if(bt_strcpy(&(*apps)[i].app,apps_p->value.object->listeOfPair[i].key)){
-            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        if(unescapeString(&(*apps)[i].app,apps_p->value.object->listeOfPair[i].key)){
+            LOG_ERROR("Decoding of a string failed (unescapeString)");
             for(size_t j=0;j<i;j++){
                 free((*apps)[j].app);
                 bt_deepFree((*apps)[j].nbOfEntries,(void**)(*apps)[j].ids);
@@ -1119,7 +1128,7 @@ int getCShieldAppInfo(JsonValue* app,CShieldAppInfo* info){
         }
         info->ids = tmp;
         info->ids[i] = NULL;
-        if(bt_strcpy(&info->ids[i],app->value.object->listeOfPair[i].key)){
+        if(unescapeString(&info->ids[i],app->value.object->listeOfPair[i].key)){
             
             bt_deepFree(i+1,(void**)info->ids);
             info->ids = NULL;
@@ -1282,8 +1291,8 @@ int getCShieldPasswordHistory (JsonValue* vaultRoot,CShieldEntry* e,CShieldParam
             return 1;
         }
 
-        if(bt_strcpy(&e->password_history[index],value_v->value.object->listeOfPair[indexOldPassword].value.value.string)){
-            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        if(unescapeString(&e->password_history[index],value_v->value.object->listeOfPair[indexOldPassword].value.value.string)){
+            LOG_ERROR("Decoding of a string failed (unescapeString)");
             bt_freeCShieldEntry(e);
             return 1;
         }
@@ -1566,13 +1575,13 @@ int fillUpWithEntry(JsonObject* obj,CShieldParams entry){
             LOG_ERROR("JSON altered or corrupted, key 'note' not found");
             return 1;
         }
-        char* note = NULL;
-        if(bt_strcpy(&note,entry.note)){
-            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+        JsonValue note_v;
+        if(newJsonString(&note_v,entry.note)){
+            LOG_ERROR("newJsonValue have failed (newJsonString(&note_v,entry.note))");
             return 1;
         }
         freeValue(obj->listeOfPair[indexNote].value);
-        obj->listeOfPair[indexNote].value.value.string = note;
+        obj->listeOfPair[indexNote].value = note_v;
     }
 
     if(entry.tags != NULL){
@@ -1588,10 +1597,10 @@ int fillUpWithEntry(JsonObject* obj,CShieldParams entry){
             return 1;
         }
         for(size_t i=0;i< entry.nbOfTags;i++){
-            JsonValue tag_v = initJsonValue(JSON_STRING);
-            if(bt_strcpy(&tag_v.value.string,entry.tags[i])){
+            JsonValue tag_v;
+            if(newJsonString(&tag_v,entry.tags[i])){
+                LOG_ERROR("newJsonValue have failed (newJsonString(&tag_v,entry.tags[i]))");
                 freeValue(newArray);
-                LOG_ERROR("Copy of a string failed (bt_strcpy)");
                 return 1;
             }
             state = addToArray(newArray.value.array,tag_v,i);

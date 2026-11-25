@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
             nukeString(buffer,bt_strlen(buffer));
             free(buffer);
         }else{
-            print_WRN("No password provided through '--password' flags. Generate one thanks with the conf ?");
+            print_WRN("No password provided through '--password' flags. Generate one ?");
             printf("Accept ? : ");printf("[");char_RGB(0,255,0,'Y');printf("/");char_RGB(255,0,0,'n');printf("] : ");
             state = getValidation();
             if(state == 1){
@@ -1646,7 +1646,11 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                     return 1;
                 }
                 upP = 1; 
-                up = 1;
+                if(up == 1){
+                    up = 0;
+                }else{
+                    up = 1;
+                }
             }else if(isOneOfThemEqual(argv[i],2,"--lowercase","-low")){
                 if(lowP == 1){
                     print_WRN("Parameter '%s' already use",argv[i]);
@@ -1655,7 +1659,11 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                     return 1;
                 }
                 lowP = 1; 
-                low = 1;
+                if(low == 1){
+                    low = 0;
+                }else{
+                    low = 1;
+                }
             }else if(isOneOfThemEqual(argv[i],2,"--digits","-dig")){
                 if(digP == 1){
                     print_WRN("Parameter '%s' already use",argv[i]);
@@ -1664,7 +1672,11 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                     return 1;
                 }
                 digP = 1; 
-                dig = 1;
+                if(dig == 1){
+                    dig = 0;
+                }else{
+                    dig = 1;
+                }
             }else if(isOneOfThemEqual(argv[i],2,"--symbols","-sym")){
                 if(symP == 1){
                     print_WRN("Parameter '%s' already use",argv[i]);
@@ -1673,11 +1685,20 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                     return 1;
                 }
                 symP = 1; 
-                sym = 1;
+                if(sym == 1){
+                    sym = 0;
+                }else{
+                    sym = 1;
+                }
             }else{
                 print_WRN("Flag '%s' unknow or useless while generating a password",argv[i]);
                 return 1;
             }
+        }
+
+        if(!up && !low && !dig && !sym){
+            print_WRN("No character set enabled, nothing to generate");
+            return 1;
         }
 
         e->genParam.lenght = len;

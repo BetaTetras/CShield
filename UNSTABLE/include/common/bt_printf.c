@@ -1831,8 +1831,8 @@ int bt_printHelp(){
     printf_RGB(96,165,250,"  %-15s%-6s","--show","-sh");printf_RGB(148,163,184,"Display passwords in clear (show only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--history","-h");printf_RGB(148,163,184,"Password history, with --app and --id (show only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--length","-len");printf_RGB(148,163,184,"Password length (generate only)");printf("\n");
-    printf_RGB(96,165,250,"  %-15s%-6s","--uppercase","-up");printf_RGB(148,163,184,"Use A-Z (generate only)");printf("\n");
-    printf_RGB(96,165,250,"  %-15s%-6s","--lowercase","-low");printf_RGB(148,163,184,"Use a-z (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--uppercase","-up");printf_RGB(148,163,184,"Toggle A-Z (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--lowercase","-low");printf_RGB(148,163,184,"Toggle a-z (generate only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--digits","-dig");printf_RGB(148,163,184,"Use 0-9 (generate only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--symbols","-sym");printf_RGB(148,163,184,"Use symbols (generate only)");printf("\n");
     printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
@@ -1851,7 +1851,7 @@ int bt_printHelp(){
     printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
     print_INF("Deleting without --id removes ALL entries of the application");
     print_INF("'-i' alone shows the configuration, after a command it means --id");
-    print_INF("'generate' uses the conf.json defaults, flags turn options on");
+    print_INF("'generate' uses the conf.json defaults, flags toggle them");
     return 0;
 }
 
