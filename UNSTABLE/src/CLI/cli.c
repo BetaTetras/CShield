@@ -1102,6 +1102,52 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }
+        }else if(box == 7){
+            CShieldEntry entry;
+            state = getCShieldPasswordHistory(&vaultRoot,&entry,e);
+            if(state == 1){
+                print_ERR(ERR_SYSTEM_MSG);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }else if(state == 2){
+                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }else if(state == 3){
+                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+                uint8_tToZero(b_encryptedVault,size_encryptedVault);
+                uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
+                nukeString(vaultPWD,bt_strlen(vaultPWD));
+                free(b_encryptedVault);
+                free(b_decryptedVault);
+                free(vaultPWD);
+                free(vaultPath);
+                freeValue(vaultRoot);
+                bt_deepFree(e.nbOfTags,(void**)e.tags);
+                bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
+                return 1;
+            }
+
+            bt_boxPwdHistory(&entry,e.show);
+            bt_freeCShieldEntry(&entry);
         }
 
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
@@ -2142,13 +2188,27 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
             e->newPassword = 0;
             e->tagsMethode = 0;
         }
+    }if(m == shw){
+        if(paramHISTORY == 1){
+            if(paramAPP == 0){
+                print_WRN("--app parameter missing");
+                bt_deepFree(e->nbOfTags,(void**)tags);
+                return 1;
+            }else if(paramID == 0){
+                print_WRN("--id parameter missing");
+                bt_deepFree(e->nbOfTags,(void**)tags);
+                return 1;
+            }
+        }
     }
 
     return 0;
 }
 
 static int witchBox(CShieldParams p){    
-    if(p.tags != NULL){
+    if(p.history == 1){
+        return 7;
+    }else if(p.tags != NULL){
         return 3;
     }else if(p.searchedWords != NULL){
         return 4;
@@ -2159,7 +2219,6 @@ static int witchBox(CShieldParams p){
     }else if(p.app == NULL && p.id == NULL){
         return 6;
     }
-
     return 0;
 }
 

@@ -1829,6 +1829,7 @@ int bt_printHelp(){
     printf_RGB(96,165,250,"  %-15s%-6s","--and","");printf_RGB(148,163,184,"Match ALL tags / words (default, show only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--or","");printf_RGB(148,163,184,"Match ANY tag / word (show only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--show","-sh");printf_RGB(148,163,184,"Display passwords in clear (show only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--history","-h");printf_RGB(148,163,184,"Password history, with --app and --id (show only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--length","-len");printf_RGB(148,163,184,"Password length (generate only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--uppercase","-up");printf_RGB(148,163,184,"Use A-Z (generate only)");printf("\n");
     printf_RGB(96,165,250,"  %-15s%-6s","--lowercase","-low");printf_RGB(148,163,184,"Use a-z (generate only)");printf("\n");
@@ -1842,6 +1843,7 @@ int bt_printHelp(){
     printf_RGB(74,222,128,"  cshield dlt perso --app Google --id main");printf("\n");
     printf_RGB(74,222,128,"  cshield shw perso");printf("\n");
     printf_RGB(74,222,128,"  cshield shw perso --app Google --id main --show");printf("\n");
+    printf_RGB(74,222,128,"  cshield shw perso --app Google --id main --history");printf("\n");
     printf_RGB(74,222,128,"  cshield shw perso --tags mail perso --or");printf("\n");
     printf_RGB(74,222,128,"  cshield shw perso --search server");printf("\n");
     printf_RGB(74,222,128,"  cshield gen --length 24 --symbols");printf("\n");
