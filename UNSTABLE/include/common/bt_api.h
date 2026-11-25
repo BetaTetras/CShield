@@ -15,22 +15,22 @@
 // Crée l'app et/ou l'id s'ils n'existent pas. entry.app et entry.id sont obligatoires.
 // Renvoie :
 //   0 : entrée ajoutée
-//   1 : erreur (paramètre invalide, versions de CShild et du vault différentes, vault altéré, mémoire...)
+//   1 : erreur (paramètre invalide, versions de CShield et du vault différentes, vault altéré, mémoire...)
 //   2 : mot de passe de l'entrée vide (entry.pwd non NULL mais "")
 //   3 : l'app et l'id existent déjà (rien n'est modifié)
-int addEntry(JsonValue *vaultRoot, CShildParams entry);
+int addEntry(JsonValue *vaultRoot, CShieldParams entry);
 
 // Supprime de vaultRoot l'entrée entry.app / entry.id. Si entry.id est NULL, supprime TOUTE l'app.
 // Si le dernier id d'une app est supprimé, l'app elle-même est supprimée aussi.
 // *numberOfEntryRemoved reçoit le nombre d'entrées supprimées (0 si rien n'a été supprimé) ; il ne doit pas être NULL.
 // Renvoie :
 //   0 : suppression faite
-//   1 : erreur (paramètre invalide, versions de CShild et du vault différentes, vault altéré...)
+//   1 : erreur (paramètre invalide, versions de CShield et du vault différentes, vault altéré...)
 //   2 : l'app n'existe pas
 //   3 : l'id n'existe pas dans cette app
 //   4 : suppression faite ET l'app a été supprimée parce qu'elle n'avait plus aucun id (*numberOfEntryRemoved vaut 1)
 // 2 et 3 ne sont pas des erreurs internes (rien n'est écrit dans error.log) : l'appelant doit les signaler à l'utilisateur.
-int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemoved);
+int removeEntry(JsonValue *vaultRoot,CShieldParams entry,int* numberOfEntryRemoved);
 
 // Modifie dans vaultRoot l'entrée entry.app / entry.id. Une seule des trois actions est faite, par ordre de priorité :
 //   - entry.newAppName non NULL : renomme l'app entry.app (entry.id et le reste sont ignorés)
@@ -45,7 +45,7 @@ int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemove
 // Les valeurs données sont copiées : l'appelant garde (et libère) les siennes. entry.id est obligatoire sauf pour renommer une app.
 // Renvoie :
 //   0 : modification faite
-//   1 : erreur (paramètre invalide, versions de CShild et du vault différentes, vault altéré, mémoire...)
+//   1 : erreur (paramètre invalide, versions de CShield et du vault différentes, vault altéré, mémoire...)
 //   2 : l'app n'existe pas
 //   3 : l'id n'existe pas dans cette app
 //   4 : renommage d'app impossible : le nouveau nom (entry.newAppName) est déjà pris par une autre app (rien n'est modifié)
@@ -56,20 +56,21 @@ int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemove
 //   8 : tagsMethode 3 : un tag n'existe pas (même remarque que pour 7). *indexBadTag = index de ce tag dans entry.tags
 // 2 à 8 ne sont pas des erreurs internes (rien n'est écrit dans error.log) : l'appelant doit les signaler à l'utilisateur.
 // Sur tout retour différent de 0, ne pas écrire le vault.
-int modEntry(JsonValue *vaultRoot,CShildParams entry,size_t* indexBadTag);
+int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag);
 
 // Remplace le mot de passe de data et déplace l'ancien dans "password_history" (avec la date).
 // ATTENTION : efface newPassword (stringToZero) une fois copié, il ne doit pas être réutilisé.
 // Renvoie 0 si le mot de passe est remplacé, 1 en cas d'erreur, 2 si newPassword est vide (rien n'est modifié).
 int modPassword(JsonObject *data, char* newPassword);
 
-int getEntry(JsonValue entrys,CShildEntry *e,int show);
-int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p);
-int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
-int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
-int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p);
-int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numberOfApps);
-int getCShildAppInfo(JsonValue* app,CShildAppInfo* info);
+int getEntry(JsonValue entrys,CShieldEntry *e,int show);
+int getSingleEntry(JsonValue* vaultRoot,CShieldEntry* e,CShieldParams p);
+int getAllFromApp(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p);
+int getMatchingTags(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p);
+int getMatchingWord(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p);
+int getCShieldAllAppsInfo(JsonValue* vaultRoot,CShieldAppInfo** apps,size_t* numberOfApps);
+int getCShieldAppInfo(JsonValue* app,CShieldAppInfo* info);
+int getCShieldPasswordHistory (JsonValue* vaultRoot,CShieldEntry* e,CShieldParams p);
 
 // Date et heure actuelles en UTC au format "2026-11-05T14:32:10Z".
 // *dest reçoit une nouvelle chaîne (21 octets), à libérer avec free.
@@ -78,8 +79,12 @@ int getTime(char** dest);
 // Version enregistrée dans le vault (clé "version", un décimal comme 0.1), ou -1 si elle est introuvable.
 double getVersionVault(JsonValue vaultRoot);
 
+// Compare la version de CShield et celle du vault vaultRoot. Renvoie 0 si elles sont identiques, 1 sinon (versions différentes
+// ou impossible de les lire : la raison est écrite dans error.log).
+int isMatchingVersion(JsonValue* vaultRoot);
+
 int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags,char logicalOperator);
-int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShildEntry entry,char logicalOperator,char** whereItMatch);
+int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShieldEntry entry,char logicalOperator,char** whereItMatch);
 
 // Remplit objDest avec une entrée vide : password, note, tags, password_history, created_at et updated_at.
 int generateNewBlankEntry(JsonObject* objDest);
@@ -87,6 +92,6 @@ int generateNewBlankEntry(JsonObject* objDest);
 // Copie dans obj les champs de entry qui ne sont pas NULL (pwd, note, tags).
 // obj doit venir de generateNewBlankEntry.
 // Renvoie 0 si tout est copié, 1 en cas d'erreur, 2 si entry.pwd est vide (le mot de passe est traité en premier : rien n'est alors modifié).
-int fillUpWithEntry(JsonObject* obj, CShildParams entry);
+int fillUpWithEntry(JsonObject* obj, CShieldParams entry);
 
 #endif

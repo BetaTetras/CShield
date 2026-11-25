@@ -1,4 +1,4 @@
-# Makefile CShild (UNSTABLE) : CLI avec CSON + AES-256-GCM
+# Makefile CShield (UNSTABLE) : CLI avec CSON + AES-256-GCM
 # Utilisation : make | make run | make clean
 
 CC      = gcc
@@ -12,7 +12,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 BUILD = build
-CLI   = cshild$(EXE)
+CLI   = cshield$(EXE)
 
 LIB_OBJ = $(BUILD)/cson.o $(BUILD)/AES.o $(BUILD)/bt_utils.o $(BUILD)/bt_log.o $(BUILD)/bt_api.o $(BUILD)/bt_printf.o
 CLI_OBJ = $(BUILD)/cli.o

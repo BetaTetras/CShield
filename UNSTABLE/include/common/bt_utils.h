@@ -6,6 +6,8 @@
 
 #include "../CSON/cson.h"
 
+#define VERSION_CSHIELD 0.1
+
 typedef struct{
     int lenght;
     int uppercase;
@@ -32,8 +34,10 @@ typedef struct {
     char OpeLogTAGS;
     char OpeLogWORD;
 
+    int history;
+
     GenParameter genParam;
-}CShildParams;
+}CShieldParams;
 
 typedef struct{
     char* app;
@@ -45,7 +49,10 @@ typedef struct{
     char* created;
     char* updated;
     char* matchingSrc;
-}CShildEntry;
+    char** password_history;
+    char** password_history_dates;
+    size_t nbOfOldPassword;
+}CShieldEntry;
 
 // Une app pour la liste des apps (bt_boxApps) : aucun secret, juste de quoi la décrire
 typedef struct{
@@ -53,13 +60,7 @@ typedef struct{
     char** ids;             // les ID de l'app, nbOfEntries éléments (NULL si l'app est vide)
     size_t nbOfEntries;
     char* updated;          // date de la dernière modification d'une entrée de l'app (NULL si l'app est vide)
-}CShildAppInfo;
-
-// Un mot de passe de l'historique d'une entrée (bt_boxPwdHistory)
-typedef struct{
-    char* pwd;
-    char* date;             // quand il a été défini : "2026-11-10T09:41:55Z" ou "2026-11-10 09:41:55"
-}CShildPwdHistory;
+}CShieldAppInfo;
 
 // Fonctions de chaînes partagées par CSON, AES et le CLI.
 // Les paramètres const ne sont que lus.
@@ -80,8 +81,8 @@ int vaultAreadyCreated(const char* selectedName);
 int getConfPath(char** dest);
 int getConf(JsonValue* destConf);
 int parseVaultName(char** dest,const char* src);
-int getCShildDir(char** pathDest);
-double getVersionCShild(void);
+int getCShieldDir(char** pathDest);
+double getVersionCShield(void);
 int getVaultsPath(char** dest);
 int getErrorLogPath(char** dest);
 int getActionLoggerPath(char** dest);
@@ -89,7 +90,7 @@ int getGenParam(GenParameter* p);                                     // remplit
 int getVaultPathFromName(char** destPath,const char* vaultName);
 int getSizeFromPath(char* path,size_t* dest);
 int getAllVaultNameAndSize(char*** dest,size_t** sizes,size_t* numberOfSize);
-// Crée <dossier des vaults>/<nomVault>.cshild contenant un vault vide (JSON en clair : à chiffrer ensuite avec AES_GCM_Encrypt_File).
+// Crée <dossier des vaults>/<nomVault>.cshield contenant un vault vide (JSON en clair : à chiffrer ensuite avec AES_GCM_Encrypt_File).
 // Ne remplace jamais un vault existant. Renvoie 0 si créé, 1 en cas d'erreur interne,
 // 2 si le nom est invalide (vide, commence par '.', contient / \ : * ? " < > |), 3 si ce vault existe déjà.
 int initNewBlankVault(char* nomVault);
@@ -101,8 +102,8 @@ int writeVault(const uint8_t* src,const size_t size,const char* path);
 void bt_multiFree(size_t numberToFree,...);
 void bt_multiFreeValue(size_t numberToFree,...);
 void bt_deepFree(size_t numberToFree,void** p);
-void bt_freeCShildEntry(CShildEntry *entry);
-void bt_freeCShildAppInfo(CShildAppInfo* info);
+void bt_freeCShieldEntry(CShieldEntry *entry);
+void bt_freeCShieldAppInfo(CShieldAppInfo* info);
 void nukeString(char* str,size_t size);
 void uint8_tToZero(uint8_t* p_uint8_t,size_t size);   // définie dans AES.c (non déclarée dans AES.h upstream)
 

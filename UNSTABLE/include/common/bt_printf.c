@@ -14,6 +14,9 @@
 #include "bt_utils.h"
 #include "bt_log.h"
 
+#include "../AES-256-GCM/AES.h"
+#include "../CSON/cson.h"
+
 #ifdef _WIN32
     // Réglages d'origine de la console, pour les remettre à la fin du programme
     static UINT oldOutputCP = 0;
@@ -165,7 +168,7 @@ typedef struct {
 } BoxColumn;
 
 typedef struct {
-    const CShildEntry* entries;
+    const CShieldEntry* entries;
     size_t nbOfEntries;
     int show;
     char head[512];          // début du titre (gras)
@@ -448,7 +451,7 @@ static void boxFicheRule(const char* left,const char* mid,const char* right,size
     fputc('\n',stdout);
 }
 
-int bt_boxSingleEntry(const CShildEntry* entry,int show){
+int bt_boxSingleEntry(const CShieldEntry* entry,int show){
     if(entry == NULL){
         LOG_ERROR("Corrupted pointer (entry == NULL)");
         return 1;
@@ -654,7 +657,7 @@ static void boxAddColumn(BoxTable* t,BoxColKind kind,const char* header){
     c->minW = 0;
 }
 
-static size_t boxTagsCols(const CShildEntry* e){
+static size_t boxTagsCols(const CShieldEntry* e){
     if(e->tags == NULL || e->nbOfTags == 0){
         return 1;                                       // "-"
     }
@@ -666,7 +669,7 @@ static size_t boxTagsCols(const CShildEntry* e){
 }
 
 // Largeur du texte de la cellule (colonne c, entrée e)
-static size_t boxCellCols(const BoxTable* t,const BoxColumn* c,const CShildEntry* e){
+static size_t boxCellCols(const BoxTable* t,const BoxColumn* c,const CShieldEntry* e){
     switch(c->kind){
         case BOX_COL_APP:
             return boxCols(e->app);
@@ -743,7 +746,7 @@ static int boxDropPasswordColumn(BoxTable* t){
 }
 
 // Écrit les tags d'une entrée dans w colonnes, tous de la même teinte.
-static void boxPutTagsCell(const CShildEntry* e,size_t w,BoxRgb color){
+static void boxPutTagsCell(const CShieldEntry* e,size_t w,BoxRgb color){
     boxFg(color,0);
     if(e->tags == NULL || e->nbOfTags == 0){
         boxPutCell("-",w);
@@ -768,7 +771,7 @@ static void boxPutTagsCell(const CShildEntry* e,size_t w,BoxRgb color){
     boxPutSpaces(w - used);
 }
 
-static void boxPutRowCell(const BoxTable* t,const BoxColumn* c,const CShildEntry* e,size_t row){
+static void boxPutRowCell(const BoxTable* t,const BoxColumn* c,const CShieldEntry* e,size_t row){
     // une ligne sur deux légèrement plus sombre
     BoxRgb color = (row % 2 == 1) ? boxScale(c->tint,84) : c->tint;
     char date[24];
@@ -918,7 +921,7 @@ static void boxJoinTerms(char* out,size_t outSize,const char* prefix,char** term
     }
 }
 
-int bt_boxMultiEntry(const CShildEntry* entries,size_t nbOfEntries,int show){
+int bt_boxMultiEntry(const CShieldEntry* entries,size_t nbOfEntries,int show){
     if(entries == NULL && nbOfEntries > 0){
         LOG_ERROR("Corrupted pointer (entries == NULL)");
         return 1;
@@ -945,7 +948,7 @@ int bt_boxMultiEntry(const CShildEntry* entries,size_t nbOfEntries,int show){
     return 0;
 }
 
-int bt_boxTagsMatching(const CShildEntry* entries,size_t nbOfEntries,int show,char** tags,size_t nbOfTags,char logicalOperator){
+int bt_boxTagsMatching(const CShieldEntry* entries,size_t nbOfEntries,int show,char** tags,size_t nbOfTags,char logicalOperator){
     if((entries == NULL && nbOfEntries > 0) || tags == NULL || nbOfTags == 0){
         LOG_ERROR("Corrupted pointer or no tag (entries == NULL, tags == NULL or nbOfTags == 0)");
         return 1;
@@ -974,7 +977,7 @@ int bt_boxTagsMatching(const CShildEntry* entries,size_t nbOfEntries,int show,ch
     return 0;
 }
 
-int bt_boxWordMatching(const CShildEntry* entries,size_t nbOfEntries,int show,char** words,size_t nbOfWords,char logicalOperator){
+int bt_boxWordMatching(const CShieldEntry* entries,size_t nbOfEntries,int show,char** words,size_t nbOfWords,char logicalOperator){
     if((entries == NULL && nbOfEntries > 0) || words == NULL || nbOfWords == 0){
         LOG_ERROR("Corrupted pointer or no word (entries == NULL, words == NULL or nbOfWords == 0)");
         return 1;
@@ -1004,7 +1007,7 @@ int bt_boxWordMatching(const CShildEntry* entries,size_t nbOfEntries,int show,ch
     return 0;
 }
 
-///////////////////////////// Liste des vaults (CShild vaults)
+///////////////////////////// Liste des vaults (CShield vaults)
 
 #define BOX_VAULT_BAR_COLS  20     // largeur voulue de la barre de comparaison
 #define BOX_VAULT_BAR_MIN   4
@@ -1269,7 +1272,7 @@ static void boxPutHeaderRow(const BoxTable* t,int rightCol){
     fputc('\n',stdout);
 }
 
-int bt_boxApps(const CShildAppInfo* apps,size_t nbOfApps){
+int bt_boxApps(const CShieldAppInfo* apps,size_t nbOfApps){
     if(apps == NULL && nbOfApps > 0){
         LOG_ERROR("Corrupted pointer (apps == NULL)");
         return 1;
@@ -1295,7 +1298,7 @@ int bt_boxApps(const CShildAppInfo* apps,size_t nbOfApps){
     }
     t.cols[3].w = 10;                        // "2026-11-10"
     for(size_t i=0;i<nbOfApps;i++){
-        CShildEntry ids = {0};
+        CShieldEntry ids = {0};
         ids.tags = apps[i].ids;
         ids.nbOfTags = apps[i].nbOfEntries;
 
@@ -1374,7 +1377,7 @@ int bt_boxApps(const CShildAppInfo* apps,size_t nbOfApps){
         fputs(" │ ",stdout);
         size_t last = 2;
         if(withIds){
-            CShildEntry ids = {0};
+            CShieldEntry ids = {0};
             ids.tags = apps[i].ids;
             ids.nbOfTags = apps[i].nbOfEntries;
             boxPutTagsCell(&ids,t.cols[2].w,tint[2]);
@@ -1415,14 +1418,27 @@ static long boxDayNumber(const char* iso){
     return era * 146097 + doe - 719468;
 }
 
-// Durée d'usage du mot de passe i : « current » pour le plus récent, sinon l'écart avec le suivant plus récent
-static void boxUsedFor(const CShildPwdHistory* h,size_t i,char* out,size_t outSize){
+// L'historique d'une entrée a nbOfOldPassword + 1 lignes : la ligne 0 est le mot de passe actuel (entry->pwd),
+// la ligne i >= 1 est entry->password_history[i - 1].
+static const char* boxHistPwd(const CShieldEntry* e,size_t row){
+    return (row == 0) ? e->pwd : e->password_history[row - 1];
+}
+
+// Date à laquelle le mot de passe de la ligne row a été défini. password_history_dates[row] est la date où password_history[row] (la ligne
+// row + 1, plus ancienne) a été remplacé, donc celle où la ligne row a été définie. Le plus ancien n'a jamais été remplacé
+// par rien : il date de la création de l'entrée.
+static const char* boxHistSetOn(const CShieldEntry* e,size_t row){
+    return (row < e->nbOfOldPassword) ? e->password_history_dates[row] : e->created;
+}
+
+// Durée d'usage du mot de passe de la ligne row : « current » pour le plus récent, sinon l'écart avec le suivant plus récent
+static void boxUsedFor(const CShieldEntry* e,size_t i,char* out,size_t outSize){
     if(i == 0){
         snprintf(out,outSize,"current");
         return;
     }
-    long newer = boxDayNumber(h[i - 1].date);
-    long older = boxDayNumber(h[i].date);
+    long newer = boxDayNumber(boxHistSetOn(e,i - 1));
+    long older = boxDayNumber(boxHistSetOn(e,i));
     if(newer < 0 || older < 0 || newer < older){
         snprintf(out,outSize,"-");
     }else if(newer == older){
@@ -1434,16 +1450,17 @@ static void boxUsedFor(const CShildPwdHistory* h,size_t i,char* out,size_t outSi
     }
 }
 
-int bt_boxPwdHistory(const CShildEntry* entry,const CShildPwdHistory* history,size_t nbOfPasswords,int show){
-    if(entry == NULL || (history == NULL && nbOfPasswords > 0)){
-        LOG_ERROR("Corrupted pointer (entry == NULL or history == NULL)");
+int bt_boxPwdHistory(const CShieldEntry* entry,int show){
+    if(entry == NULL || (entry->nbOfOldPassword > 0 && (entry->password_history == NULL || entry->password_history_dates == NULL))){
+        LOG_ERROR("Corrupted pointer (entry == NULL or password_history == NULL or password_history_dates == NULL)");
         return 1;
     }
     initConsole();
-    if(nbOfPasswords == 0){
+    if(bt_strlen(entry->pwd) == 0 && entry->nbOfOldPassword == 0){
         print_INF("No password history");
         return 0;
     }
+    size_t nbOfPasswords = entry->nbOfOldPassword + 1;     // le mot de passe actuel + les anciens
     show = (show != 0);
 
     char text[32];
@@ -1461,17 +1478,17 @@ int bt_boxPwdHistory(const CShildEntry* entry,const CShildPwdHistory* history,si
     t.cols[0].w = 1;                         // le marqueur ● du mot de passe actuel
     t.cols[1].w = BOX_DATE_COLS;
     for(size_t i=0;i<nbOfPasswords;i++){
-        boxUsedFor(history,i,text,sizeof(text));
+        boxUsedFor(entry,i,text,sizeof(text));
         size_t w = boxCols(text);
         if(w > t.cols[2].w){
             t.cols[2].w = w;
         }
-        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(history[i].pwd));
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(boxHistPwd(entry,i)));
         w = boxCols(text);
         if(w > t.cols[3].w){
             t.cols[3].w = w;
         }
-        w = show ? boxCols(history[i].pwd) : BOX_BULLETS_COLS;
+        w = show ? boxCols(boxHistPwd(entry,i)) : BOX_BULLETS_COLS;
         if(w > t.cols[4].w){
             t.cols[4].w = w;
         }
@@ -1522,24 +1539,24 @@ int bt_boxPwdHistory(const CShildEntry* entry,const CShildPwdHistory* history,si
         boxFg(BOX_FRAME,0);
         fputs(" │ ",stdout);
         boxFg(tint,0);
-        boxFormatDate(history[i].date,1,date,sizeof(date));
+        boxFormatDate(boxHistSetOn(entry,i),1,date,sizeof(date));
         boxPutCell(date,t.cols[1].w);
         boxFg(BOX_FRAME,0);
         fputs(" │ ",stdout);
         boxFg(tint,0);
-        boxUsedFor(history,i,text,sizeof(text));
+        boxUsedFor(entry,i,text,sizeof(text));
         boxPutCell(text,t.cols[2].w);
         boxFg(BOX_FRAME,0);
         fputs(" │ ",stdout);
         boxFg(tint,0);
-        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(history[i].pwd));
+        snprintf(text,sizeof(text),"%llu",(unsigned long long)boxCols(boxHistPwd(entry,i)));
         boxPutRight(text,t.cols[3].w);
         boxFg(BOX_FRAME,0);
         fputs(" │",stdout);
         if(withPwd){
             fputc(' ',stdout);
             boxFg(tint,0);
-            boxPutCell(show ? history[i].pwd : BOX_BULLETS,t.cols[4].w);
+            boxPutCell(show ? boxHistPwd(entry,i) : BOX_BULLETS,t.cols[4].w);
             boxFg(BOX_FRAME,0);
             fputs(" │",stdout);
         }
@@ -1547,5 +1564,303 @@ int bt_boxPwdHistory(const CShildEntry* entry,const CShildPwdHistory* history,si
         fputc('\n',stdout);
     }
     boxTableRule(&t,"└","┴","┘");
+    return 0;
+}
+
+int bt_printInfo(){
+    int state;
+    // On récupére le path de la conf
+    char* configPath = NULL;
+    state = getConfPath(&configPath);
+    if(state == 1){
+        print_ERR("Impossible to fetch config path");
+        return 1;
+    }
+    if(isFileOpenable(configPath) == 0){
+        print_ERR("No config json found in %s",configPath);
+        free(configPath);
+        return 1;
+    }
+    // On récupére le JSON
+    JsonValue conf = initCsonFromFile(configPath);
+    if(conf.type == JSON_ERROR){
+        print_ERR("No config json found in %s - Erreur CSON",configPath);
+        free(configPath);
+        return 1;
+    }else if(conf.type != JSON_OBJECT){
+        print_ERR("Config json altered (not an object)");
+        freeValue(conf);
+        free(configPath);
+        return 1;
+    }
+    // vaultPath et actionLogPath pointent DANS conf : ne jamais les free (freeValue(conf) s'en charge)
+    char* vaultPath = NULL;
+    size_t indexVault = getIndexFromObjectWithKey(conf.value.object,"vaults_dir_path");
+    if(indexVault == (size_t)-1){
+        print_ERR("Config json altered (key 'vaults_dir_path' not found)");
+        freeValue(conf);
+        free(configPath);
+        return 1;
+    }
+    if(conf.value.object->listeOfPair[indexVault].value.type != JSON_STRING){
+        print_ERR("Config json altered (key 'vaults_dir_path' is not a string)");
+        freeValue(conf);
+        free(configPath);
+        return 1;
+    }
+    vaultPath = conf.value.object->listeOfPair[indexVault].value.value.string;
+    // On récupére le path des log d'erreur
+    char* errorLogPath = NULL;
+    state = getErrorLogPath(&errorLogPath);
+    if(state == 1){
+        print_ERR("Impossible to fetch error log path");
+        freeValue(conf);
+        free(configPath);
+        return 1;
+    }
+    // On récupére le path des log d'action
+    char* actionLogPath = NULL;
+    size_t indexActionLog = getIndexFromObjectWithKey(conf.value.object,"log_action_path");
+    if(indexActionLog == (size_t)-1){
+        print_ERR("Config json altered (key 'log_action_path' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(conf.value.object->listeOfPair[indexActionLog].value.type != JSON_STRING){
+        print_ERR("Config json altered (key 'log_action_path' is not a string)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    actionLogPath = conf.value.object->listeOfPair[indexActionLog].value.value.string;
+    // On récupére le nombre d'itération PBKDF2
+    size_t indexPBKDF2_iteration = getIndexFromObjectWithKey(conf.value.object,"pbkdf2_iterations");
+    if(indexPBKDF2_iteration == (size_t)-1){
+        print_ERR("Config json altered (key 'pbkdf2_iterations' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(conf.value.object->listeOfPair[indexPBKDF2_iteration].value.type != JSON_NUMBER){
+        print_ERR("Config json altered (key 'pbkdf2_iterations' is not a number)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int PBKDF2_iteration = conf.value.object->listeOfPair[indexPBKDF2_iteration].value.value.integer;
+    // On récupére le param de logAction
+    size_t indexLogActionStatu = getIndexFromObjectWithKey(conf.value.object,"log_action");
+    if(indexLogActionStatu == (size_t)-1){
+        print_ERR("Config json altered (key 'log_action' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(conf.value.object->listeOfPair[indexLogActionStatu].value.type != JSON_BOOL){
+        print_ERR("Config json altered (key 'log_action' is not a boolean)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int logActionStatu = conf.value.object->listeOfPair[indexLogActionStatu].value.value.integer;
+    // On récupére le param de generation
+    size_t indexGenerator = getIndexFromObjectWithKey(conf.value.object,"generator");
+    if(indexGenerator == (size_t)-1){
+        print_ERR("Config json altered (key 'generator' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(conf.value.object->listeOfPair[indexGenerator].value.type != JSON_OBJECT){
+        print_ERR("Config json altered (conf>generator is not an object)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    JsonObject* generator = conf.value.object->listeOfPair[indexGenerator].value.value.object;
+    //length
+    size_t indexLenght = getIndexFromObjectWithKey(generator,"length");
+    if(indexLenght == (size_t)-1){
+        print_ERR("Config json altered (key 'length' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(generator->listeOfPair[indexLenght].value.type != JSON_NUMBER){
+        print_ERR("Config json altered (key 'length' is not a number)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int length = generator->listeOfPair[indexLenght].value.value.integer;
+    //uppercase
+    size_t indexUppercase = getIndexFromObjectWithKey(generator,"uppercase");
+    if(indexUppercase == (size_t)-1){
+        print_ERR("Config json altered (key 'uppercase' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(generator->listeOfPair[indexUppercase].value.type != JSON_BOOL){
+        print_ERR("Config json altered (key 'uppercase' is not a boolean)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int uppercase = generator->listeOfPair[indexUppercase].value.value.integer;
+    //lowercase
+    size_t indexLowercase = getIndexFromObjectWithKey(generator,"lowercase");
+    if(indexLowercase == (size_t)-1){
+        print_ERR("Config json altered (key 'lowercase' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(generator->listeOfPair[indexLowercase].value.type != JSON_BOOL){
+        print_ERR("Config json altered (key 'lowercase' is not a boolean)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int lowercase = generator->listeOfPair[indexLowercase].value.value.integer;
+    //digits
+    size_t indexDigits = getIndexFromObjectWithKey(generator,"digits");
+    if(indexDigits == (size_t)-1){
+        print_ERR("Config json altered (key 'digits' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(generator->listeOfPair[indexDigits].value.type != JSON_BOOL){
+        print_ERR("Config json altered (key 'digits' is not a boolean)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int digits = generator->listeOfPair[indexDigits].value.value.integer;
+    //symbols
+    size_t indexSymbols = getIndexFromObjectWithKey(generator,"symbols");
+    if(indexSymbols == (size_t)-1){
+        print_ERR("Config json altered (key 'symbols' not found)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    if(generator->listeOfPair[indexSymbols].value.type != JSON_BOOL){
+        print_ERR("Config json altered (key 'symbols' is not a boolean)");
+        freeValue(conf);
+        free(configPath);
+        free(errorLogPath);
+        return 1;
+    }
+    int symbols = generator->listeOfPair[indexSymbols].value.value.integer;
+
+    printf("\n");
+    printf_RGB_BG(15,23,42,96,165,250," CShield v%.1f ",getVersionCShield());printf_RGB(148,163,184,"  First CLI build");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Config");printf_RGB(148,163,184,"%s",configPath);printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Vaults");printf_RGB(148,163,184,"%s",vaultPath);printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Error logs");printf_RGB(148,163,184,"%s",errorLogPath);printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Action logs");printf_RGB(148,163,184,"%s",actionLogPath);printf("   ");if(logActionStatu){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(96,165,250,"  %-14s","PBKDF2");printf_RGB(148,163,184,"%d iterations",PBKDF2_iteration);printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Length");printf_RGB(148,163,184,"%d characters",length);printf("\n");
+    printf_RGB(96,165,250,"  %-14s","Characters");
+    printf_RGB(148,163,184,"A-Z ");if(uppercase){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("   ");
+    printf_RGB(148,163,184,"a-z ");if(lowercase){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("   ");
+    printf_RGB(148,163,184,"0-9 ");if(digits){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("   ");
+    printf_RGB(148,163,184,"sym ");if(symbols){printf_RGB(74,222,128,"✓");}else{printf_RGB(248,113,113,"✗");}printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+
+    freeValue(conf);
+    free(configPath);
+    free(errorLogPath);  
+    return 0;
+}
+
+int bt_printHelp(){
+    printf("\n");
+    printf_RGB_BG(15,23,42,96,165,250," CShield v%.1f ",VERSION_CSHIELD);printf_RGB(148,163,184,"  Help");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  Usage       ");printf("cshield <command> <vault> [options]\n");
+    printf("              cshield gen [options]\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  Commands");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-6s","create","crt");printf_RGB(148,163,184,"Add an entry to a vault");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-6s","modify","mdf");printf_RGB(148,163,184,"Change an entry, rename an application or an ID");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-6s","delete","dlt");printf_RGB(148,163,184,"Remove an entry, or a whole application");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-6s","show","shw");printf_RGB(148,163,184,"Show entries or search (alone: list the apps)");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-6s","generate","gen");printf_RGB(148,163,184,"Generate a password (no vault needed)");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  Vaults");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-9s","init","<vault>");printf_RGB(148,163,184,"Create a vault");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-9s","vaults","");printf_RGB(148,163,184,"List the vaults and their size");printf("\n");
+    printf_RGB(96,165,250,"  %-9s%-9s","password","<vault>");printf_RGB(148,163,184,"Change the master password of a vault");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  Options");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--app","-a");printf_RGB(148,163,184,"Application name");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--id","-i");printf_RGB(148,163,184,"Entry identifier");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--note","-n");printf_RGB(148,163,184,"Note");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--tags","-t");printf_RGB(148,163,184,"Tags (modify replaces all, show filters)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--add-tags","-at");printf_RGB(148,163,184,"Add tags (modify only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--remove-tags","-rt");printf_RGB(148,163,184,"Remove tags (modify only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--new-app","-na");printf_RGB(148,163,184,"Rename an application (modify only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--new-id","-ni");printf_RGB(148,163,184,"Rename an entry (modify only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--password","-p");printf_RGB(148,163,184,"Set or change the password (create and modify only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--search","-se");printf_RGB(148,163,184,"Search words (show only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--and","");printf_RGB(148,163,184,"Match ALL tags / words (default, show only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--or","");printf_RGB(148,163,184,"Match ANY tag / word (show only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--show","-sh");printf_RGB(148,163,184,"Display passwords in clear (show only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--length","-len");printf_RGB(148,163,184,"Password length (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--uppercase","-up");printf_RGB(148,163,184,"Use A-Z (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--lowercase","-low");printf_RGB(148,163,184,"Use a-z (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--digits","-dig");printf_RGB(148,163,184,"Use 0-9 (generate only)");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-6s","--symbols","-sym");printf_RGB(148,163,184,"Use symbols (generate only)");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  Examples");printf("\n");
+    printf_RGB(74,222,128,"  cshield crt perso --app Google --id main --tags mail perso");printf("\n");
+    printf_RGB(74,222,128,"  cshield mdf perso --app Google --id main --add-tags work");printf("\n");
+    printf_RGB(74,222,128,"  cshield mdf perso --app Google --new-app Gmail");printf("\n");
+    printf_RGB(74,222,128,"  cshield dlt perso --app Google --id main");printf("\n");
+    printf_RGB(74,222,128,"  cshield shw perso");printf("\n");
+    printf_RGB(74,222,128,"  cshield shw perso --app Google --id main --show");printf("\n");
+    printf_RGB(74,222,128,"  cshield shw perso --tags mail perso --or");printf("\n");
+    printf_RGB(74,222,128,"  cshield shw perso --search server");printf("\n");
+    printf_RGB(74,222,128,"  cshield gen --length 24 --symbols");printf("\n");
+    printf_RGB(74,222,128,"  cshield vaults");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    print_INF("Deleting without --id removes ALL entries of the application");
+    print_INF("'-i' alone shows the configuration, after a command it means --id");
+    print_INF("'generate' uses the conf.json defaults, flags turn options on");
+    return 0;
+}
+
+int bt_printVersion(){
+    printf("\n");
+    printf_RGB_BG(15,23,42,96,165,250," CShield v%.1f ",VERSION_CSHIELD);printf_RGB(148,163,184,"  First CLI build");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
+    printf_RGB(148,163,184,"  %-15s%-10s%s","Component","Version","Source");printf("\n");
+    printf_RGB(96,165,250,"  %-15s%-10.1f","CShield",VERSION_CSHIELD);printf_RGB(148,163,184,"https://github.com/BetaTetras/CShield");printf("\n");
+    printf_RGB(74,222,128,"  %-15s%-10.1f","CSON",VERSION_CSON);printf_RGB(148,163,184,"https://github.com/BetaTetras/CSON");printf("\n");
+    printf_RGB(248,113,113,"  %-15s%-10d","AES-256-GCM",VERSION_AES);printf_RGB(148,163,184,"https://github.com/BetaTetras/AES-256-GCM");printf("\n");
+    printf_RGB(148,163,184,"────────────────────────────────────────────────────────────────────");printf("\n");
     return 0;
 }

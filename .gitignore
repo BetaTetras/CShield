@@ -1,1 +1,28 @@
-/UNSTABLE/.dev/codeTest/
+# ── Compilation ──────────────────────────────────────────────
+# Objets et exécutables produits par make (le Makefile recrée build/ tout seul).
+# Pour versionner volontairement un exécutable de release : git add -f <fichier>
+/UNSTABLE/build/
+*.o
+*.obj
+*.exe
+
+# ── Données utilisateur : ne jamais commiter ─────────────────
+# Coffres chiffrés de mots de passe (extension actuelle et ancienne)
+*.cshield
+# Le contenu de vaults/ et log/ est ignoré, mais les dossiers restent (.gitkeep) :
+# le programme ne les crée pas lui-même (init, logger d'actions).
+/UNSTABLE/vaults/*
+!/UNSTABLE/vaults/.gitkeep
+/UNSTABLE/log/*
+!/UNSTABLE/log/.gitkeep
+*.log
+
+# ── Notes et essais perso ────────────────────────────────────
+/UNSTABLE/.dev/
+
+# ── Éditeur / OS / outils ────────────────────────────────────
+.vscode/
+.vs/
+Thumbs.db
+desktop.ini
+.claude/settings.local.json

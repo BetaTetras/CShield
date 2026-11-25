@@ -28,12 +28,12 @@ void bt_logError(const char* file,int line,const char* func,const char* reason){
     }
 
     char* path = NULL;
-    if(bt_strcpy(&path,base) || bt_strcat(&path,"/CShild/UNSTABLE/log/error.log")){
+    if(bt_strcpy(&path,base) || bt_strcat(&path,"/CShield/UNSTABLE/log/error.log")){
         free(path);
         return;
     }
 
-    // Crée CShild/, UNSTABLE/ et log/ s'ils n'existent pas (l'erreur "existe déjà" est ignorée)
+    // Crée CShield/, UNSTABLE/ et log/ s'ils n'existent pas (l'erreur "existe déjà" est ignorée)
     for(size_t i = bt_strlen(base) + 1; path[i] != '\0'; i++){
         if(path[i] == '/'){
             path[i] = '\0';

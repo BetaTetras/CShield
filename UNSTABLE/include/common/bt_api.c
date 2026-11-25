@@ -11,7 +11,7 @@
 #include "bt_utils.h"
 #include "bt_log.h"
 
-int addEntry(JsonValue *vaultRoot,CShildParams entry){
+int addEntry(JsonValue *vaultRoot,CShieldParams entry){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -23,17 +23,7 @@ int addEntry(JsonValue *vaultRoot,CShildParams entry){
     int state = 0;
     size_t indexor = 0;
     // Vérification des version 
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -129,7 +119,7 @@ int addEntry(JsonValue *vaultRoot,CShildParams entry){
 }
 
 
-int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemoved){
+int removeEntry(JsonValue *vaultRoot,CShieldParams entry,int* numberOfEntryRemoved){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT || numberOfEntryRemoved == NULL){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL,numberOfEntryRemoved == NULL or not an object)");
         return 1;
@@ -141,17 +131,7 @@ int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemove
     *numberOfEntryRemoved = 0;
     int state = 0;
     size_t indexor = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -213,7 +193,7 @@ int removeEntry(JsonValue *vaultRoot,CShildParams entry,int* numberOfEntryRemove
     return 0;
 }
 
-int modEntry(JsonValue *vaultRoot,CShildParams entry,size_t* indexBadTag){
+int modEntry(JsonValue *vaultRoot,CShieldParams entry,size_t* indexBadTag){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -233,17 +213,7 @@ int modEntry(JsonValue *vaultRoot,CShildParams entry,size_t* indexBadTag){
 
     int state = 0;
     size_t indexor = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -502,7 +472,7 @@ int modPassword(JsonObject *obj,char* newPassword){
 // pwd (seulement si show == 1, sinon il reste NULL), note, tags + nbOfTags, created et updated sont des copies à libérer par l'appelant.
 // e doit être à zéro avant l'appel, et app / id ne sont PAS remplis ici : l'appelant les copie après (sinon ils seraient libérés avec le reste en cas d'erreur).
 // Renvoie 0 si tout est copié, 1 en cas d'erreur (paramètre invalide, vault altéré, mémoire...) : e est alors remis à zéro, il n'y a rien à libérer.
-int getEntry(JsonValue entries,CShildEntry *e,int show){
+int getEntry(JsonValue entries,CShieldEntry *e,int show){
     if(e == NULL){
         LOG_ERROR("Corrupted pointer (e == NULL)");
         return 1;
@@ -519,7 +489,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
             nukeString(e->pwd,bt_strlen(e->pwd));
             bt_deepFree(e->nbOfTags,(void**)e->tags);
             bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-            *e = (CShildEntry){0};
+            *e = (CShieldEntry){0};
             return 1;
         }
         if(bt_strcpy(&e->pwd,entries.value.object->listeOfPair[indexPassword].value.value.string)){
@@ -527,7 +497,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
             nukeString(e->pwd,bt_strlen(e->pwd));
             bt_deepFree(e->nbOfTags,(void**)e->tags);
             bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-            *e = (CShildEntry){0};
+            *e = (CShieldEntry){0};
             return 1;
         }
     }
@@ -537,7 +507,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     if(bt_strcpy(&e->note,entries.value.object->listeOfPair[indexNote].value.value.string)){
@@ -545,7 +515,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     size_t indexTags = getIndexFromObjectWithKey(entries.value.object,"tags");
@@ -554,7 +524,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     size_t nbOfTags = entries.value.object->listeOfPair[indexTags].value.value.array->nbOfElement;
@@ -565,7 +535,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     for(size_t i=0;i<nbOfTags;i++){
@@ -574,7 +544,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
             nukeString(e->pwd,bt_strlen(e->pwd));
             bt_deepFree(e->nbOfTags,(void**)e->tags);
             bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-            *e = (CShildEntry){0};
+            *e = (CShieldEntry){0};
             return 1;
         }
     }
@@ -584,7 +554,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     if(bt_strcpy(&e->created,entries.value.object->listeOfPair[indexCreated_at].value.value.string)){
@@ -592,7 +562,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     size_t indexUpdated_at = getIndexFromObjectWithKey(entries.value.object,"updated_at");
@@ -601,7 +571,7 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     if(bt_strcpy(&e->updated,entries.value.object->listeOfPair[indexUpdated_at].value.value.string)){
@@ -609,14 +579,14 @@ int getEntry(JsonValue entries,CShildEntry *e,int show){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
 
     return 0;
 }
 
-int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+int getAllFromApp(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -635,17 +605,7 @@ int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CSh
     }
 
     size_t indexor = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -673,14 +633,14 @@ int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CSh
     }
 
     *numberOfEntry = entry_v->value.object->nbOfElement;
-    *e = calloc(*numberOfEntry,sizeof(CShildEntry));
+    *e = calloc(*numberOfEntry,sizeof(CShieldEntry));
     if(*e == NULL){
         *numberOfEntry = 0;
-        LOG_ERROR("Error while allocating memory (*e = calloc(numberOfEntry,sizeof(CShildEntry)))");
+        LOG_ERROR("Error while allocating memory (*e = calloc(numberOfEntry,sizeof(CShieldEntry)))");
         return 1;
     }
     for(size_t i=0;i<*numberOfEntry;i++){
-        (*e)[i] = (CShildEntry){0};
+        (*e)[i] = (CShieldEntry){0};
         int state = getEntry(entry_v->value.object->listeOfPair[i].value,&(*e)[i],p.show);
         if(state == 1){
             for(size_t j=0;j<=i;j++){
@@ -721,7 +681,7 @@ int getAllFromApp(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CSh
     return 0;
 }
 
-int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p){
+int getSingleEntry(JsonValue* vaultRoot,CShieldEntry* e,CShieldParams p){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -740,21 +700,11 @@ int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p){
     }
 
     size_t indexor = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
-    *e = (CShildEntry){0};
+    *e = (CShieldEntry){0};
     indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
     if(indexor == (size_t)-1){
         LOG_ERROR("JSON of the vault altered - key 'apps' not found");
@@ -792,7 +742,7 @@ int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
     if(bt_strcpy(&e->id,p.id)){
@@ -800,14 +750,14 @@ int getSingleEntry(JsonValue* vaultRoot,CShildEntry* e,CShildParams p){
         nukeString(e->pwd,bt_strlen(e->pwd));
         bt_deepFree(e->nbOfTags,(void**)e->tags);
         bt_multiFree(6,e->app,e->id,e->pwd,e->note,e->created,e->updated);
-        *e = (CShildEntry){0};
+        *e = (CShieldEntry){0};
         return 1;
     }
 
     return 0;
 }
 
-int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+int getMatchingTags(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -833,17 +783,7 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
     *e = NULL;
     size_t indexor = 0;
     int state = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -864,7 +804,7 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
         if(IDs_p->type != JSON_OBJECT){
             LOG_ERROR("JSON of the vault altered - IDs level value is not objects");
             for(size_t k=0;k<*numberOfEntry;k++){
-                bt_freeCShildEntry(&(*e)[k]);
+                bt_freeCShieldEntry(&(*e)[k]);
             }
             free(*e);
             *e = NULL;
@@ -877,7 +817,7 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
             if(Entries_p->type != JSON_OBJECT){
                 LOG_ERROR("JSON of the vault altered - Entries level value is not objects");
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -885,11 +825,11 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 return 1;
             }
             char* idName_p = IDs_p->value.object->listeOfPair[j].key;
-            CShildEntry buffer_e = {0};
+            CShieldEntry buffer_e = {0};
             state = getEntry(*Entries_p,&buffer_e,p.show);
             if(state == 1){
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -900,9 +840,9 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
             if(state == 1){
                 if(bt_strcpy(&buffer_e.app,appName_p) == 1){
                     LOG_ERROR("Copy of a string failed (bt_strcpy)");
-                    bt_freeCShildEntry(&buffer_e);
+                    bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
-                        bt_freeCShildEntry(&(*e)[k]);
+                        bt_freeCShieldEntry(&(*e)[k]);
                     }
                     free(*e);
                     *e = NULL;
@@ -912,21 +852,21 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
 
                 if(bt_strcpy(&buffer_e.id,idName_p) == 1){
                     LOG_ERROR("Copy of a string failed (bt_strcpy)");
-                    bt_freeCShildEntry(&buffer_e);
+                    bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
-                        bt_freeCShildEntry(&(*e)[k]);
+                        bt_freeCShieldEntry(&(*e)[k]);
                     }
                     free(*e);
                     *e = NULL;
                     *numberOfEntry = 0;
                     return 1;
                 }
-                CShildEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry));
+                CShieldEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShieldEntry));
                 if(buffer == NULL){
-                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry)))");
-                    bt_freeCShildEntry(&buffer_e);
+                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShieldEntry)))");
+                    bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
-                        bt_freeCShildEntry(&(*e)[k]);
+                        bt_freeCShieldEntry(&(*e)[k]);
                     }
                     free(*e);
                     *e = NULL;
@@ -938,14 +878,14 @@ int getMatchingTags(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 (*e)[*numberOfEntry] = buffer_e;
                 (*numberOfEntry)++;
             }else{
-                bt_freeCShildEntry(&buffer_e);
+                bt_freeCShieldEntry(&buffer_e);
             }
         }
     }
     return 0;
 }
 
-int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,CShildParams p){
+int getMatchingWord(JsonValue* vaultRoot,CShieldEntry** e,size_t* numberOfEntry,CShieldParams p){
         if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -970,17 +910,7 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
     *e = NULL;
     size_t indexor = 0;
     int state = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -1000,7 +930,7 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
         if(IDs_p->type != JSON_OBJECT){
             LOG_ERROR("JSON of the vault altered - IDs level value is not objects");
             for(size_t k=0;k<*numberOfEntry;k++){
-                bt_freeCShildEntry(&(*e)[k]);
+                bt_freeCShieldEntry(&(*e)[k]);
             }
             free(*e);
             *e = NULL;
@@ -1013,7 +943,7 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
             if(Entries_p->type != JSON_OBJECT){
                 LOG_ERROR("JSON of the vault altered - Entries level value is not objects");
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -1021,11 +951,11 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 return 1;
             }
             char* idName_p = IDs_p->value.object->listeOfPair[j].key;
-            CShildEntry buffer_e = {0};
+            CShieldEntry buffer_e = {0};
             state = getEntry(*Entries_p,&buffer_e,p.show);
             if(state == 1){
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -1034,9 +964,9 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
             }
             if(bt_strcpy(&buffer_e.app,appName_p) == 1){
                 LOG_ERROR("Copy of a string failed (bt_strcpy)");
-                bt_freeCShildEntry(&buffer_e);
+                bt_freeCShieldEntry(&buffer_e);
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -1046,9 +976,9 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
 
             if(bt_strcpy(&buffer_e.id,idName_p) == 1){
                 LOG_ERROR("Copy of a string failed (bt_strcpy)");
-                bt_freeCShildEntry(&buffer_e);
+                bt_freeCShieldEntry(&buffer_e);
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -1057,9 +987,9 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
             }
             state = isOneWordMatching(p.searchedWords,p.nbOfSearchedWord,buffer_e,p.OpeLogWORD,&buffer_e.matchingSrc);
             if(state == -1){
-                bt_freeCShildEntry(&buffer_e);
+                bt_freeCShieldEntry(&buffer_e);
                 for(size_t k=0;k<*numberOfEntry;k++){
-                    bt_freeCShildEntry(&(*e)[k]);
+                    bt_freeCShieldEntry(&(*e)[k]);
                 }
                 free(*e);
                 *e = NULL;
@@ -1067,12 +997,12 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 return 1;
             }
             if(state == 1){
-                CShildEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry));
+                CShieldEntry* buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShieldEntry));
                 if(buffer == NULL){
-                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShildEntry)))");
-                    bt_freeCShildEntry(&buffer_e);
+                    LOG_ERROR("Error while allocating memory (buffer = realloc(*e,(*numberOfEntry + 1) * sizeof(CShieldEntry)))");
+                    bt_freeCShieldEntry(&buffer_e);
                     for(size_t k=0;k<*numberOfEntry;k++){
-                        bt_freeCShildEntry(&(*e)[k]);
+                        bt_freeCShieldEntry(&(*e)[k]);
                     }
                     free(*e);
                     *e = NULL;
@@ -1084,7 +1014,7 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
                 (*e)[*numberOfEntry] = buffer_e;
                 (*numberOfEntry)++;
             }else{
-                bt_freeCShildEntry(&buffer_e);
+                bt_freeCShieldEntry(&buffer_e);
             }
         }
     }
@@ -1092,7 +1022,7 @@ int getMatchingWord(JsonValue* vaultRoot,CShildEntry** e,size_t* numberOfEntry,C
     return 0;
 }
 
-int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numberOfApps){
+int getCShieldAllAppsInfo(JsonValue* vaultRoot,CShieldAppInfo** apps,size_t* numberOfApps){
     if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
         LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
         return 1;
@@ -1104,17 +1034,7 @@ int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numbe
 
     *apps = NULL; *numberOfApps = 0;
     size_t indexor = 0;
-    double versionCShild = getVersionCShild();
-    if(versionCShild == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild");
-        return 1;
-    }
-    double versionVault = getVersionVault(*vaultRoot);
-    if(versionVault == -1){
-        LOG_ERROR("Impossible to fetch the version of the vault");
-        return 1;
-    }else if(versionCShild != versionVault){
-        LOG_ERROR("Version of CShild and the vault different");
+    if(isMatchingVersion(vaultRoot)){
         return 1;
     }
 
@@ -1134,9 +1054,9 @@ int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numbe
         return 0;
     }
 
-    CShildAppInfo* tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShildAppInfo));
+    CShieldAppInfo* tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShieldAppInfo));
     if(tmp_CSI == NULL){
-        LOG_ERROR("Error while allocating memory (tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShildAppInfo*)))");
+        LOG_ERROR("Error while allocating memory (tmp_CSI = calloc(apps_p->value.object->nbOfElement,sizeof(CShieldAppInfo*)))");
         return 1;
     }
     *apps = tmp_CSI;
@@ -1155,7 +1075,7 @@ int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numbe
             *numberOfApps = 0;
             return 1;
         }
-        state = getCShildAppInfo(&apps_p->value.object->listeOfPair[i].value,&(*apps)[i]);
+        state = getCShieldAppInfo(&apps_p->value.object->listeOfPair[i].value,&(*apps)[i]);
         if(state){
             for(size_t j=0;j<i;j++){
                 free((*apps)[j].app);
@@ -1174,7 +1094,7 @@ int getCShildAllAppsInfo(JsonValue* vaultRoot,CShildAppInfo** apps,size_t* numbe
     return 0;
 }
 
-int getCShildAppInfo(JsonValue* app,CShildAppInfo* info){
+int getCShieldAppInfo(JsonValue* app,CShieldAppInfo* info){
     if(app == NULL || info == NULL){
         LOG_ERROR("Corrupted pointer (app == NULL || info == NULL)");
         return 1;
@@ -1246,6 +1166,138 @@ int getCShildAppInfo(JsonValue* app,CShildAppInfo* info){
     return 0;
 }
 
+int getCShieldPasswordHistory (JsonValue* vaultRoot,CShieldEntry* e,CShieldParams p){
+        if(vaultRoot == NULL || vaultRoot->type != JSON_OBJECT){
+        LOG_ERROR("Corrupted pointer (vaultRoot == NULL or not an object)");
+        return 1;
+    }
+    if(e == NULL){
+        LOG_ERROR("Corrupted pointer (e == NULL)");
+        return 1;
+    }
+    if(p.app == NULL){
+        LOG_ERROR("App name not provided (e->app == NULL)");
+        return 1;
+    }
+    if(p.id == NULL){
+        LOG_ERROR("ID not provided (e->id == NULL)");
+        return 1;
+    }
+
+    size_t indexor = 0;
+    if(isMatchingVersion(vaultRoot)){
+        return 1;
+    }
+
+    *e = (CShieldEntry){0};
+    indexor = getIndexFromObjectWithKey(vaultRoot->value.object,"apps");
+    if(indexor == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'apps' not found");
+        return 1;
+    }
+    JsonValue* apps_v = &vaultRoot->value.object->listeOfPair[indexor].value;
+    if(apps_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - 'apps' value is not an object");
+        return 1;
+    }
+    // L'app existe ?
+    size_t indexApp = getIndexFromObjectWithKey(apps_v->value.object,p.app);
+    if(indexApp == (size_t)-1){
+        // L'app n'existe pas 
+        return 2;
+    }
+    JsonValue* IDs_v = &apps_v->value.object->listeOfPair[indexApp].value;
+    if(IDs_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - entry value is not an object");
+        return 1;
+    }
+    // L'ID existe ?
+    size_t indexID = getIndexFromObjectWithKey(IDs_v->value.object,p.id);
+    if(indexID == (size_t)-1){
+        // L'ID n'existe pas 
+        return 3;
+    }
+    JsonValue* entry_v = &IDs_v->value.object->listeOfPair[indexID].value;
+    if(entry_v->type != JSON_OBJECT){
+        LOG_ERROR("JSON of the vault altered - entry value is not an object");
+        return 1;
+    }
+    // On choppe l'ID de password_history;
+    size_t indexHistory = getIndexFromObjectWithKey(entry_v->value.object,"password_history");
+    if(indexHistory == (size_t)-1){
+        LOG_ERROR("JSON of the vault altered - key 'password_history' not found");
+        return 1;
+    }
+    JsonValue* password_history_v = &entry_v->value.object->listeOfPair[indexHistory].value;
+    if(password_history_v->type != JSON_ARRAY){
+        LOG_ERROR("JSON of the vault altered - 'password_history' value is not an array");
+        return 1;
+    }
+    if(getEntry(*entry_v,e,1)){ 
+        return 1;
+    }
+    if(bt_strcpy(&e->app,p.app) || bt_strcpy(&e->id,p.id)){
+        bt_freeCShieldEntry(e);
+        return 1;
+    }
+    if(password_history_v->value.array->nbOfElement == 0){
+        return 0;
+    }
+
+    // On récupère chaque valeur 
+    char** tmp_history = calloc(password_history_v->value.array->nbOfElement,sizeof(char*));
+    if(tmp_history == NULL){
+        LOG_ERROR("Error while allocating memory (tmp_history = calloc)");
+        bt_freeCShieldEntry(e);
+        return 1;
+    }
+    char** tmp_history_date = calloc(password_history_v->value.array->nbOfElement,sizeof(char*));
+    if(tmp_history_date == NULL){
+        LOG_ERROR("Error while allocating memory (tmp_history_date = calloc)");
+        free(tmp_history);
+        bt_freeCShieldEntry(e);
+        return 1;
+    }
+    e->password_history = tmp_history;
+    e->password_history_dates = tmp_history_date;
+    e->nbOfOldPassword = password_history_v->value.array->nbOfElement;
+    int index = 0;
+    for(int i=(int)(e->nbOfOldPassword)-1;i>=0;i--){
+        JsonValue* value_v = &password_history_v->value.array->listeOfValue[i];
+        if(value_v->type != JSON_OBJECT){
+            LOG_ERROR("JSON of the vault altered - 'password' value inside 'password_history' is not an object");
+            bt_freeCShieldEntry(e);
+            return 1;
+        }
+        size_t indexOldPassword = getIndexFromObjectWithKey(value_v->value.object,"password");
+        if(indexOldPassword == (size_t)-1){
+            LOG_ERROR("JSON of the vault altered - key 'password' inside 'password_history' not found");
+            bt_freeCShieldEntry(e);
+            return 1;
+        }
+        size_t indexOldPasswordDate = getIndexFromObjectWithKey(value_v->value.object,"changed_at");
+        if(indexOldPasswordDate == (size_t)-1){
+            LOG_ERROR("JSON of the vault altered - key 'password' inside 'password_history' not found");
+            bt_freeCShieldEntry(e);
+            return 1;
+        }
+
+        if(bt_strcpy(&e->password_history[index],value_v->value.object->listeOfPair[indexOldPassword].value.value.string)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            bt_freeCShieldEntry(e);
+            return 1;
+        }
+        if(bt_strcpy(&e->password_history_dates[index],value_v->value.object->listeOfPair[indexOldPasswordDate].value.value.string)){
+            LOG_ERROR("Copy of a string failed (bt_strcpy)");
+            bt_freeCShieldEntry(e);
+            return 1;
+        }
+        index ++;
+    }
+
+    return 0;
+}
+
 //////////////////////////////
 
 int getTime(char** dest){
@@ -1293,6 +1345,24 @@ double getVersionVault(JsonValue vaultRoot){
     return vaultRoot.value.object->listeOfPair[indexVersion].value.value.decimal;
 }
 
+int isMatchingVersion(JsonValue* vaultRoot){
+    double versionCShield = getVersionCShield();
+    if(versionCShield == -1){
+        LOG_ERROR("Impossible to fetch the version of CShield");
+        return 1;
+    }
+    double versionVault = getVersionVault(*vaultRoot);
+    if(versionVault == -1){
+        LOG_ERROR("Impossible to fetch the version of the vault");
+        return 1;
+    }else if(versionCShield != versionVault){
+        LOG_ERROR("Version of CShield and the vault different");
+        return 1;
+    }
+
+    return 0;
+}
+
 int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedTags,size_t nbOfSearchedTags,char logicalOperator){
     if(logicalOperator == '|'){
         for(size_t i=0;i<nbOfTags;i++){
@@ -1319,7 +1389,7 @@ int isOneTagsMatching(char** listeOfTags,size_t nbOfTags,char** listeOfSearchedT
     return 0;
 }
 
-int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShildEntry entry,char logicalOperator,char** whereItMatch){
+int isOneWordMatching(char** listeOfWord,size_t nbOfWord,CShieldEntry entry,char logicalOperator,char** whereItMatch){
     if(whereItMatch == NULL){
         LOG_ERROR("Corrupted pointer (whereItMatch == NULL)");
         return -1;
@@ -1472,7 +1542,7 @@ int generateNewBlankEntry(JsonObject* objDest){
     return 0;
 }
 
-int fillUpWithEntry(JsonObject* obj,CShildParams entry){
+int fillUpWithEntry(JsonObject* obj,CShieldParams entry){
     if(obj == NULL){
         LOG_ERROR("Corrupted pointer (obj == NULL)");
         return 1;

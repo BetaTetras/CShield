@@ -309,10 +309,10 @@ int getConfPath(char** dest){
         LOG_ERROR("Error while allocating memory (confPath calloc)");
         return 1;
     }
-    state = getCShildDir(&projectRoot);
+    state = getCShieldDir(&projectRoot);
     if(state){
         free(confPath);
-        LOG_ERROR("Impossible to fetch the CShild directory (getCShildDir)");
+        LOG_ERROR("Impossible to fetch the CShield directory (getCShieldDir)");
         return 1;
     }
 
@@ -426,10 +426,10 @@ int getErrorLogPath(char** dest){
         LOG_ERROR("Error while allocating memory (confPath calloc)");
         return 1;
     }
-    state = getCShildDir(&projectRoot);
+    state = getCShieldDir(&projectRoot);
     if(state){
         free(confPath);
-        LOG_ERROR("Impossible to fetch the CShild directory (getCShildDir)");
+        LOG_ERROR("Impossible to fetch the CShield directory (getCShieldDir)");
         return 1;
     }
 
@@ -600,7 +600,7 @@ int parseVaultName(char** dest, const char* src){
     if(dot <= 0){
         return 1;
     }
-    if(bt_strcmp(src + dot, ".cshild") != 0){
+    if(bt_strcmp(src + dot, ".cshield") != 0){
         return 1;
     }
     int state = 0;
@@ -612,7 +612,7 @@ int parseVaultName(char** dest, const char* src){
     return 0;
 }
 
-int getCShildDir(char** pathDest){
+int getCShieldDir(char** pathDest){
     if(pathDest == NULL){
         LOG_ERROR("Corrupted pointer (pathDest == NULL)");
         return 1;
@@ -629,14 +629,14 @@ int getCShildDir(char** pathDest){
         return 1;
     }
 
-    size_t size = bt_strlen(base) + bt_strlen("/CShild") + 1;
+    size_t size = bt_strlen(base) + bt_strlen("/CShield") + 1;
     char* tmp = calloc(size,sizeof(char));
     if(tmp == NULL){
         LOG_ERROR("Error while allocating memory (tmp calloc)");
         return 1;
     }
 
-    snprintf(tmp,size,"%s/CShild",base);
+    snprintf(tmp,size,"%s/CShield",base);
 
     free(*pathDest);
     *pathDest = tmp;
@@ -647,7 +647,7 @@ int getCShildDir(char** pathDest){
     return 0;
 }
 
-double getVersionCShild(void){
+double getVersionCShield(void){
     JsonValue conf;
     if(getConf(&conf)){
         return -1;
@@ -676,7 +676,7 @@ int getVaultPathFromName(char** destPath,const char* vaultName){
         return 1;
     }
     size_t vaultsPath_size = bt_strlen(vaultsPath);
-    size_t final_size = vaultsPath_size + bt_strlen(vaultName) + 9;
+    size_t final_size = vaultsPath_size + bt_strlen(vaultName) + sizeof("/.cshield"); // sizeof inclut le '\0'
     char* ThaoLin = realloc(vaultsPath,final_size);
     if(ThaoLin == NULL){
         free(vaultsPath);
@@ -685,7 +685,7 @@ int getVaultPathFromName(char** destPath,const char* vaultName){
     }
     vaultsPath = ThaoLin;
 
-    int state = snprintf(vaultsPath + vaultsPath_size,final_size - vaultsPath_size,"/%s.cshild",vaultName);
+    int state = snprintf(vaultsPath + vaultsPath_size,final_size - vaultsPath_size,"/%s.cshield",vaultName);
     if(state < 0 || (size_t) state >= final_size - vaultsPath_size){
         free(vaultsPath);
         LOG_ERROR("Path troncate    ");
@@ -1050,19 +1050,27 @@ void bt_deepFree(size_t numberToFree,void** p){
     free(p);
 }
 
-void bt_freeCShildEntry(CShildEntry *entry){
+void bt_freeCShieldEntry(CShieldEntry *entry){
     nukeString(entry->pwd,bt_strlen(entry->pwd));
     bt_multiFree(7,entry->app,entry->id,entry->pwd,entry->note,entry->created,entry->updated,entry->matchingSrc);
     bt_deepFree(entry->nbOfTags,(void**)entry->tags);
 
-    *entry = (CShildEntry){0};
+    if(entry->password_history != NULL){
+        for(size_t i=0;i<entry->nbOfOldPassword;i++){
+            nukeString(entry->password_history[i],bt_strlen(entry->password_history[i]));
+        }
+    }
+    bt_deepFree(entry->nbOfOldPassword,(void**)entry->password_history);
+    bt_deepFree(entry->nbOfOldPassword,(void**)entry->password_history_dates);
+
+    *entry = (CShieldEntry){0};
 }
 
-void bt_freeCShildAppInfo(CShildAppInfo* info){
+void bt_freeCShieldAppInfo(CShieldAppInfo* info){
     bt_multiFree(2,info->app,info->updated);
     bt_deepFree(info->nbOfEntries,(void**)info->ids);
 
-    *info = (CShildAppInfo){0};
+    *info = (CShieldAppInfo){0};
 }
 
 void nukeString(char* str,size_t size){
@@ -1085,9 +1093,9 @@ int initNewBlankVault(char* nomVault){
         return 3;
     }
     int state;
-    double version_d = getVersionCShild();
+    double version_d = getVersionCShield();
     if(version_d == -1){
-        LOG_ERROR("Impossible to fetch the version of CShild (getVersionCShild)");
+        LOG_ERROR("Impossible to fetch the version of CShield (getVersionCShield)");
         return 1;
     }
     JsonValue newVault = initJsonValue(JSON_OBJECT);
