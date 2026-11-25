@@ -35,10 +35,28 @@ static int witchBox(CShieldParams p);
 
 int main(int argc, char *argv[]) {
     initConsole();
+    #ifdef _WIN32
+            if(convertARGV(argv,argc)){
+                print_ERR(ERR_SYSTEM_MSG);
+                return 1;
+            }
+    #endif
     int state = 0;
     if(argc == 1){
         // Faire le CLI custom
         return 0;
+    }
+    // Nom du vault en UTF-8, pour l'affichage seulement : argv[2] reste tel quel pour ouvrir le fichier
+    char* displayName = NULL;
+    if(argc > 2){
+        #ifdef _WIN32
+            if(bt_cp1252ToUtf8(&displayName,argv[2])){
+                print_ERR(ERR_SYSTEM_MSG);
+                return 1;
+            }
+        #else
+            displayName = argv[2];
+        #endif
     }
     methode m;
 
@@ -61,7 +79,7 @@ int main(int argc, char *argv[]) {
     }else{
         print_WRN("Methode '%s' non-existant...",argv[1]);
         printf("\n");
-        print_INF("You can check command with 'chsild --help'");
+        print_INF("You can check command with 'cshild --help'");
         return 1;
     }
 
@@ -77,7 +95,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         if(state != 1){
-            print_WRN("vault name '%s' not found",argv[2]);
+            print_WRN("vault name '%s' not found",displayName);
             return 1;
         }
 
@@ -137,7 +155,7 @@ int main(int argc, char *argv[]) {
         state = AES_GCM_Decrypt(&b_decryptedVault,&size_decryptedVault,b_encryptedVault,size_encryptedVault,vaultPWD);
         if(AES_GCM_Decrypt_returnCodeHandler(state)){
             if(state == AES_ERR_MDP){
-                bt_logAction('@',argv[2],1);
+                bt_logAction('@',displayName,1);
             }
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -371,7 +389,7 @@ int main(int argc, char *argv[]) {
         }
 
         print_SUC("New entry successfully saved");
-        bt_logAction('+',argv[2],1);
+        bt_logAction('+',displayName,1);
 
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
         uint8_tToZero(b_decryptedVault,size_decryptedVault);
@@ -399,7 +417,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         if(state != 1){
-            print_WRN("vault name '%s' not found",argv[2]);
+            print_WRN("vault name '%s' not found",displayName);
             return 1;
         }
 
@@ -475,7 +493,7 @@ int main(int argc, char *argv[]) {
         state = AES_GCM_Decrypt(&b_decryptedVault,&size_decryptedVault,b_encryptedVault,size_encryptedVault,vaultPWD);
         if(AES_GCM_Decrypt_returnCodeHandler(state)){
             if(state == AES_ERR_MDP){
-                bt_logAction('@',argv[2],1);
+                bt_logAction('@',displayName,1);
             }
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -505,7 +523,7 @@ int main(int argc, char *argv[]) {
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
         }else if(state == 2){
-            print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+            print_WRN("No application named '%s' inside '%s'",e.app,displayName);
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -517,7 +535,7 @@ int main(int argc, char *argv[]) {
             bt_deepFree(e.nbOfTags,(void**)e.tags);
             return 1;
         }else if(state == 3){
-            print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+            print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,displayName);
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -585,7 +603,7 @@ int main(int argc, char *argv[]) {
 
         // 9. On informe l'utilisateur
         print_SUC("%d entry successfully removed",numberOfRemovedEntry);
-        bt_logAction('-',argv[2],numberOfRemovedEntry);
+        bt_logAction('-',displayName,numberOfRemovedEntry);
 
         // 10. On clean tout en mémoire
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
@@ -612,7 +630,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         if(state != 1){
-            print_WRN("vault name '%s' not found",argv[2]);
+            print_WRN("vault name '%s' not found",displayName);
             return 1;
         }
 
@@ -686,7 +704,7 @@ int main(int argc, char *argv[]) {
         state = AES_GCM_Decrypt(&b_decryptedVault,&size_decryptedVault,b_encryptedVault,size_encryptedVault,vaultPWD);
         if(AES_GCM_Decrypt_returnCodeHandler(state)){
             if(state == AES_ERR_MDP){
-                bt_logAction('@',argv[2],1);
+                bt_logAction('@',displayName,1);
             }
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -781,11 +799,11 @@ int main(int argc, char *argv[]) {
             if(state == 1){
                 print_ERR(ERR_SYSTEM_MSG);
             }else if(state == 2){
-                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                print_WRN("No application named '%s' inside '%s'",e.app,displayName);
             }else if(state == 3){
-                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,displayName);
             }else if(state == 4){
-                print_WRN("Application name '%s' already inside '%s'",e.newAppName,argv[2]);
+                print_WRN("Application name '%s' already inside '%s'",e.newAppName,displayName);
             }else if(state == 5){
                 print_WRN("ID name '%s' already inside '%s'",e.newIDName,e.app);
             }else if(state == 6){
@@ -864,7 +882,7 @@ int main(int argc, char *argv[]) {
         }
 
         print_SUC("Modification successfully saved");
-        bt_logAction('*',argv[2],1);
+        bt_logAction('*',displayName,1);
 
         uint8_tToZero(b_encryptedVault,size_encryptedVault);
         uint8_tToZero(b_decryptedVault,size_decryptedVault);
@@ -892,7 +910,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         if(state != 1){
-            print_WRN("vault name '%s' not found",argv[2]);
+            print_WRN("vault name '%s' not found",displayName);
             return 1;
         }
 
@@ -963,7 +981,7 @@ int main(int argc, char *argv[]) {
         state = AES_GCM_Decrypt(&b_decryptedVault,&size_decryptedVault,b_encryptedVault,size_encryptedVault,vaultPWD);
         if(AES_GCM_Decrypt_returnCodeHandler(state)){
             if(state == AES_ERR_MDP){
-                bt_logAction('@',argv[2],1);
+                bt_logAction('@',displayName,1);
             }
             uint8_tToZero(b_encryptedVault,size_encryptedVault);
             nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -994,7 +1012,7 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }else if(state == 2){
-                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                print_WRN("No application named '%s' inside '%s'",e.app,displayName);
                 uint8_tToZero(b_encryptedVault,size_encryptedVault);
                 uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
                 nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -1007,7 +1025,7 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }else if(state == 3){
-                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,displayName);
                 uint8_tToZero(b_encryptedVault,size_encryptedVault);
                 uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
                 nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -1041,7 +1059,7 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }else if(state == 2){
-                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                print_WRN("No application named '%s' inside '%s'",e.app,displayName);
                 uint8_tToZero(b_encryptedVault,size_encryptedVault);
                 uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
                 nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -1163,7 +1181,7 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }else if(state == 2){
-                print_WRN("No application named '%s' inside '%s'",e.app,argv[2]);
+                print_WRN("No application named '%s' inside '%s'",e.app,displayName);
                 uint8_tToZero(b_encryptedVault,size_encryptedVault);
                 uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
                 nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -1176,7 +1194,7 @@ int main(int argc, char *argv[]) {
                 bt_deepFree(e.nbOfSearchedWord,(void**)e.searchedWords);
                 return 1;
             }else if(state == 3){
-                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,argv[2]);
+                print_WRN("No ID '%s' in the application '%s' inside '%s'",e.id,e.app,displayName);
                 uint8_tToZero(b_encryptedVault,size_encryptedVault);
                 uint8_tToZero(b_decryptedVault,size_decryptedVault + 1);
                 nukeString(vaultPWD,bt_strlen(vaultPWD));
@@ -1264,7 +1282,7 @@ int main(int argc, char *argv[]) {
                 free(pathNewVault);
                 return 1;
             }else if(state == 3){
-                print_WRN("Vault '%s' already exists",argv[2]);
+                print_WRN("Vault '%s' already exists",displayName);
                 free(pathNewVault);
                 return 1;
             }
@@ -1325,8 +1343,8 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
 
-            print_SUC("New vault '%s' successfully created",argv[2]);
-            bt_logAction('v',argv[2],0);
+            print_SUC("New vault '%s' successfully created",displayName);
+            bt_logAction('v',displayName,0);
 
             nukeString(vaultPWD,bt_strlen(vaultPWD));
             free(vaultPWD);
@@ -1348,6 +1366,15 @@ int main(int argc, char *argv[]) {
                 print_ERR(ERR_SYSTEM_MSG);
                 return 1;
             }
+            #ifdef _WIN32
+                // Les noms lus sur le disque sont en Windows-1252 : conversion pour l'affichage
+                for(size_t i=0;i<numberOfVault;i++){
+                    if(bt_cp1252ToUtf8(&listeOfVaultName[i],listeOfVaultName[i])){
+                        print_ERR(ERR_SYSTEM_MSG);
+                        return 1;
+                    }
+                }
+            #endif
             if(bt_boxVaults(listeOfVaultName,listeOfVaultSize,numberOfVault)){
                 print_ERR("Something when wrong while printing bt_boxVaults");
                 return 1;
@@ -1370,7 +1397,7 @@ int main(int argc, char *argv[]) {
                 print_ERR(ERR_SYSTEM_MSG);
                 return 1;
             }else if(state == 0){
-                print_WRN("Vault '%s' does not exist",argv[2]);
+                print_WRN("Vault '%s' does not exist",displayName);
                 return 1;
             }
 
@@ -1429,7 +1456,7 @@ int main(int argc, char *argv[]) {
             state = AES_GCM_Decrypt(&vault_Decrypted_b,&vault_Decrypted_b_size,vault_Encrypted_b,vault_Encrypted_b_size,vaultPWD);
             if(AES_GCM_Decrypt_returnCodeHandler(state)){
                 if(state == AES_ERR_MDP){
-                    bt_logAction('@',argv[2],1);
+                    bt_logAction('@',displayName,1);
                 }
                 uint8_tToZero(vault_Encrypted_b,vault_Encrypted_b_size);
                 free(vault_Encrypted_b);
@@ -1533,8 +1560,8 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
 
-            print_SUC("The vault '%s' have successfully change password",argv[2]);
-            bt_logAction('!',argv[2],1);
+            print_SUC("The vault '%s' have successfully change password",displayName);
+            bt_logAction('!',displayName,1);
 
             uint8_tToZero(vault_Encrypted_b,vault_Encrypted_b_size);
             free(vault_Encrypted_b);
@@ -1715,7 +1742,7 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
 
     for(int i=3;i<argc;i++){
         if(isOneOfThemEqual(argv[i],2,"--app","-a")){
-            if(i+1 >= argc){
+            if(i+1 >= argc || argv[i+1][0] == '-'){
                 // Il manque l'app dans la commande
                 print_WRN("App name missing after app balise");
                 bt_deepFree(numOfTags, (void**)tags);
@@ -1740,7 +1767,7 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                     continue;
                 }
             }
-            if(i+1 >= argc){
+            if(i+1 >= argc || argv[i+1][0] == '-'){
                 // Il manque l'id dans la commande
                 print_WRN("ID name missing after ID balise");
                 bt_deepFree(numOfTags, (void**)tags);
@@ -2136,7 +2163,7 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
             e->history = 1;
         }else if(m == mdf){
             if(isOneOfThemEqual(argv[i],2,"--new-app","-na")){
-                if(i+1 >= argc){
+                if(i+1 >= argc || argv[i+1][0] == '-'){
                     // Il manque le nom de la nouvelle app
                     print_WRN("App name missing after new app name balise");
                     bt_deepFree(numOfTags, (void**)tags);
@@ -2159,7 +2186,7 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
                 e->newAppName = argv[i+1];
                 i++;
             }else if(isOneOfThemEqual(argv[i],2,"--new-id","-ni")){
-                if(i+1 >= argc){
+                if(i+1 >= argc || argv[i+1][0] == '-'){
                     // Il manque le nouvel ID dans la commande
                     print_WRN("ID missing after new ID name balise");
                     bt_deepFree(numOfTags, (void**)tags);

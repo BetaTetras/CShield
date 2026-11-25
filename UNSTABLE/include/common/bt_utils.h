@@ -94,6 +94,8 @@ int getAllVaultNameAndSize(char*** dest,size_t** sizes,size_t* numberOfSize);
 // Ne remplace jamais un vault existant. Renvoie 0 si créé, 1 en cas d'erreur interne,
 // 2 si le nom est invalide (vide, commence par '.', contient / \ : * ? " < > |), 3 si ce vault existe déjà.
 int initNewBlankVault(char* nomVault);
+int bt_cp1252ToUtf8(char** dest,const char* src);
+int convertARGV(char* argv[],size_t argc);
 int getValidation(void);
 int isFileOpenable(char* path);
 int isActionLoggerActivated(void);

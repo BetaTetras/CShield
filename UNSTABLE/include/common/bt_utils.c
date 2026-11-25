@@ -1171,6 +1171,60 @@ int initNewBlankVault(char* nomVault){
     return 0;
 }
 
+int bt_cp1252ToUtf8(char** dest,const char* src){
+    if(dest == NULL || src == NULL){
+        LOG_ERROR("Corrupted pointer (dest == NULL || src == NULL)");
+        return 1;
+    }
+    // 0x80 à 0x9F : les seuls octets dont le numéro Unicode n'est pas leur valeur
+    static const unsigned short table[32] = {
+        0x20AC,0x0081,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,
+        0x02C6,0x2030,0x0160,0x2039,0x0152,0x008D,0x017D,0x008F,
+        0x0090,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
+        0x02DC,0x2122,0x0161,0x203A,0x0153,0x009D,0x017E,0x0178
+    };
+
+    size_t len = bt_strlen(src);
+    char* out = malloc(3 * len + 1);    // au pire 3 octets par caractère
+    if(out == NULL){
+        LOG_ERROR("Error while allocating memory (out = malloc)");
+        return 1;
+    }
+
+    size_t j = 0;
+    for(size_t i=0;i<len;i++){
+        unsigned char c = (unsigned char)src[i];
+        unsigned int code = (c >= 0x80 && c <= 0x9F) ? table[c - 0x80] : c;
+
+        if(code < 0x80){
+            out[j++] = (char)code;
+        }else if(code < 0x800){
+            out[j++] = (char)(0xC0 | (code >> 6));
+            out[j++] = (char)(0x80 | (code & 0x3F));
+        }else{
+            out[j++] = (char)(0xE0 | (code >> 12));
+            out[j++] = (char)(0x80 | ((code >> 6) & 0x3F));
+            out[j++] = (char)(0x80 | (code & 0x3F));
+        }
+    }
+    out[j] = '\0';
+
+    free(*dest);
+    *dest = out;
+    return 0;
+}
+
+int convertARGV(char* argv[],size_t argc){
+    for(size_t i=3;i<argc;i++){
+        char* buffer = NULL;
+        if(bt_cp1252ToUtf8(&buffer,argv[i])){
+            return 1;
+        }
+        argv[i] = buffer;
+    }
+    return 0;
+}
+
 #ifdef _WIN32
     int bt_fgetss(char** dest){
         fflush(stdout);
@@ -1231,7 +1285,7 @@ int initNewBlankVault(char* nomVault){
                 *dest = NULL;
                 LOG_ERROR("Input canceled by the user (Ctrl+C)");
                 return 1;
-            } else if (32 <= uc && uc <= 126) {
+            } else if (uc >= 32 && uc != 127) { // Tout caractère affichable, accents compris
                 len_mdp ++;
                 size ++ ;
                 tmp = realloc(*dest,size+1);
@@ -1259,6 +1313,17 @@ int initNewBlankVault(char* nomVault){
         }
         nukeString(*dest + len_mdp + 1, size - len_mdp);
         (*dest)[len_mdp] = '\0';
+
+        // Le clavier envoie du Windows-1252 (voir initConsole), le vault attend de l'UTF-8
+        char* utf8 = NULL;
+        int state = bt_cp1252ToUtf8(&utf8,*dest);
+        nukeString(*dest,len_mdp);
+        free(*dest);
+        *dest = utf8;
+        if(state){
+            LOG_ERROR("Conversion of the input failed (bt_cp1252ToUtf8)");
+            return 1;
+        }
 
         return 0;
     }

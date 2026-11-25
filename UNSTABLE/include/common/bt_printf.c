@@ -20,12 +20,16 @@
 #ifdef _WIN32
     // Réglages d'origine de la console, pour les remettre à la fin du programme
     static UINT oldOutputCP = 0;
+    static UINT oldInputCP = 0;
     static DWORD oldConsoleMode = 0;
     static int oldModeSaved = 0;
 
     static void restoreConsole(void){
         if(oldOutputCP != 0){
             SetConsoleOutputCP(oldOutputCP);
+        }
+        if(oldInputCP != 0){
+            SetConsoleCP(oldInputCP);
         }
         if(oldModeSaved){
             SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),oldConsoleMode);
@@ -43,6 +47,9 @@ void initConsole(void){
     #ifdef _WIN32
         oldOutputCP = GetConsoleOutputCP();
         SetConsoleOutputCP(CP_UTF8);
+        // Le clavier envoie du Windows-1252, que bt_fgetss convertit en UTF-8
+        oldInputCP = GetConsoleCP();
+        SetConsoleCP(1252);
         HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
         if(GetConsoleMode(out,&oldConsoleMode)){
             oldModeSaved = 1;
