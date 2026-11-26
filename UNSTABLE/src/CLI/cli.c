@@ -2299,10 +2299,28 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
             if(paramAPP == 0){
                 print_WRN("--app parameter missing");
                 bt_deepFree(e->nbOfTags,(void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }else if(paramID == 0){
                 print_WRN("--id parameter missing");
                 bt_deepFree(e->nbOfTags,(void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                return 1;
+            }
+            if(paramSEARCH == 1){
+                print_WRN("The parameter '--search' is useless while displaying the password history");
+            }
+        }else{
+            if(paramTAGS == 1 && paramSEARCH == 1){
+                print_WRN("conflict of parameter, '--search' and '--tags' can't be used together");
+                bt_deepFree(e->nbOfTags,(void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
+                return 1;
+            }
+            if((paramTAGS == 1 || paramSEARCH == 1) && (paramAPP == 1 || paramID == 1)){
+                print_WRN("'--app' and '--id' can't be used with '--tags' or '--search'");
+                bt_deepFree(e->nbOfTags,(void**)tags);
+                bt_deepFree(e->nbOfSearchedWord,(void**)searchedWords);
                 return 1;
             }
         }
