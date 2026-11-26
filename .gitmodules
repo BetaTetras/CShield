@@ -1,0 +1,6 @@
+[submodule "UNSTABLE/include/AES-256-GCM"]
+	path = UNSTABLE/include/AES-256-GCM
+	url = https://github.com/BetaTetras/AES-256-GCM
+[submodule "UNSTABLE/include/CSON"]
+	path = UNSTABLE/include/CSON
+	url = https://github.com/BetaTetras/CSON

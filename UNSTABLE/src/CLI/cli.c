@@ -32,6 +32,7 @@ int AES_GCM_Decrypt_returnCodeHandler(int code);
 int AES_GCM_Encrypt_returnCodeHandler(int code);
 static int isTagAlreadyHere(char** tags,size_t numberOfTags,char* newTag);
 static int witchBox(CShieldParams p);
+static int isFlag(const char* str);
 
 int main(int argc, char *argv[]) {
     initConsole();
@@ -1787,26 +1788,39 @@ static int fillUpEntryFromARGV(CShieldParams* e,char* argv[],int argc,methode m)
         }else if(isOneOfThemEqual(argv[i],2,"--note","-n")){
             if(m == dlt){
                 print_WRN("The parameter '--note' is useless for the methode dlt");
-                i++;
+                if(i+1 < argc && !isFlag(argv[i+1])){
+                    i++;
+                }
                 continue;
             }else if(m == mdf){
                 if(paramNewApp == 1){
                     print_WRN("The parameter '--note' is useless while changing the name of an app");
-                    i++;
+                    if(i+1 < argc && !isFlag(argv[i+1])){
+                        i++;
+                    }
                     continue;
                 }if(paramNewID == 1){
                     print_WRN("The parameter '--note' is useless while changing the name of an ID");
-                    i++;
+                    if(i+1 < argc && !isFlag(argv[i+1])){
+                        i++;
+                    }
                     continue;
                 }
             }else if(m == shw){
                 print_WRN("The parameter '--note' is useless while exposing entry");
-                i++;
+                if(i+1 < argc && !isFlag(argv[i+1])){
+                    i++;
+                }
                 continue;
             }
             if(i+1 >= argc){
                 // Il manque la note dans la commande
-                print_WRN("Note missing after note balise");
+                print_WRN("Note missing after '--note' balise");
+                bt_deepFree(numOfTags, (void**)tags);
+                return 1;
+            }
+            if(isFlag(argv[i+1])){
+                print_WRN("Note missing after '--note' balise");
                 bt_deepFree(numOfTags, (void**)tags);
                 return 1;
             }
@@ -2372,4 +2386,11 @@ static int isTagAlreadyHere(char** tags,size_t numberOfTags,char* newTag){
     }
 
     return 0;
+}
+
+static int isFlag(const char* str){
+    return isOneOfThemEqual(str,26,"--app","-a","--id","-i","--note","-n","--tags","-t",
+                            "--add-tags","-at","--remove-tags","-rt","--new-app","-na",
+                            "--new-id","-ni","--password","-p","--search","-se",
+                            "--and","--or","--show","-sh","--history","-h");
 }
